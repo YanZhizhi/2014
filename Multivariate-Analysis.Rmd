@@ -1,0 +1,105 @@
+---
+title: "Multivariate Analysis"
+author: "Yan Zhizhi"
+date: "Wednesday, December 17, 2014"
+output: html_document
+---
+
+Book: <统计学：从数据到结论>
+
+#1.主成分分析 principal component analysis
+###Step1：选取主成分
+```{r}
+w <- read.table("e://R_data//practice//data//From data to conclusion//who.txt",
+                sep = ",", header = TRUE)
+b <- eigen(cor(w)) #解相关阵cor(w)的特征值问题——找主成分的过程
+#cumsum(1:10)得到的结果是：[1]  1  3  6 10 15 21 28 36 45 55
+data.frame(b$va, b$va/sum(b$va), cumsum(b$va)/sum(b$va))
+par(mfrow = c(1,2))
+#左图为悬崖碎石土，代表每个成分（单个主轴）的轴长占总轴长度总和的比例
+#右图为累积特征值比例（通常取到85%）
+plot(b$va, type = "o", main = "Scree Plot",
+     xlab = "Component Number", ylab = "Eigen Value")
+plot(cumsum(b$va)/sum(b$va), type = "o", 
+     main = "Cumulative Eigen Value(Ratio)", xlab = "Component Number",
+     ylab = "Cumulative Eigen Value(Ratio)")
+grid()
+```
+    
+从图中可以看出，头两个特征值占了特征值总和的绝大部分，因此，选头两个就可以了。
+碎石图的走势**陡峭**则说明主成分分析结果比较好。
+
+###Step2：解释主成分
+主成分是原数据的线性组合。载荷表（Component Matrix）用于说明是怎样的组合。
+载荷表的每一列代表一个主成分，作为原来变量线性组合的系数
+```{r}
+loadings = sweep(b$ve, 2, sqrt(b$va), "*"); loadings
+```
+
+loadings[i][j]代表了第j主成分和第i变量之间的相关关系（看绝对值）
+根据载荷表与原始变量取值算出的主成分的值，称为得分/记分（score）（变量要经过标准化）
+载荷图（loading plot:）
+```{r}
+par(mfrow = c(1,1))
+plot(b$ve[,1:2], type = "n", main = "Loading Plot",
+     xlab = "Component 1", ylab = "Component 2")
+abline(h =0); abline(v = 0);
+text(b$ve[,1:2], names(w))
+#各个国家相应于第一、第二主成分的得分
+#越靠近右边越欠发达；越靠近左边越发达
+w1 <- as.matrix(scale(w))
+plot(w1%*%b$ve[,1:2], type = "n", xlab = "Comp 1", ylab = "Comp 2")
+text(w1%*%b$ve[,1:2], row.names(w), cex = 0.5)
+```
+
+#2.因子分析（Factor Analysis）
+###选取因子 
+因子分析是事先确定要找多少个成分。
+因子分析比主成分多一道工序：因子旋转（factor rotation）
+```{r}
+#第二个参数表示只要两个因子
+#这里不旋转
+par(mfrow = c(1,2))
+a1 <- factanal(w, 2, scores = "regression", rotation = "none"); a1$loading
+#这里用的是“最大方差法”做旋转——默认值是这个
+a2 <- factanal(w, 2, scores = "regression", rotation = "varimax"); a2$loading
+#数据的头两个因子载荷图
+plot(a1$loadings, type = "n", xlab = "factor 1", ylab = "factor 2")
+abline(h = 0); abline(v = 0)
+text(a1$loadings, names(w))
+
+plot(a2$loadings, type = "n", xlab = "factor 1", ylab = "factor 2")
+abline(h = 0); abline(v = 0)
+text(a2$loadings, names(w))
+
+par(mfrow = c(1,1))
+#各个国家相应于第一、第二因子的得分
+plot(a1$scores, type = "n", xlab = "Factor 1", ylab = "Factor 2")
+text(a1$scores, row.names(w), cex = 0.5)
+```
+
+***主成分分析和因子分析只能对互相相关的数量变量进行降维***
+***如果变量没有近似的多维正态分布，降维可能不理想***
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
