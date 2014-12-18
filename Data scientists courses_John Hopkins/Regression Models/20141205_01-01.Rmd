@@ -1,0 +1,131 @@
+---
+title: "John Hopkins_Regression Models_20141205"
+author: "Yan Zhizhi"
+date: "Friday, December 05, 2014"
+output: html_document
+---
+
+```{r, message=FALSE}
+library(UsingR);data(galton)
+par(mfrow = c(1,2))
+hist(galton$child, col = "blue", breaks = 100)
+hist(galton$parent, col = "blue", breaks = 100)
+```
+
+## Experiment 
+###Use R studio's manipulate to see what value of $\mu$ minimize the sum of the squared deviation
+```{r, message=FALSE }
+library(manipulate)
+par(mfrow = c(1,1))
+#base画图包
+myHist <- function(mu)
+{
+  hist(galton$child, col = "blue", breaks = 100)
+  lines(c(mu,mu), c(0,150), col = "red", lwd = 5)
+  mse <- mean((galton$child - mu)^2)
+  text(63, 150, paste("mu = ", mu))   
+  text(63, 140, paste("MSE = ", round(mse, 2)))
+}
+manipulate(myHist(mu), mu = slider(62, 74, step = 0.5))
+
+#ggplot2的画法
+library(ggplot2)
+myHist <- function(mu){
+    mse <- mean((galton$child - mu)^2)
+    g <- ggplot(galton, aes(x = child)) + geom_histogram(fill = "salmon", colour = "black", binwidth=1)
+    g <- g + geom_vline(xintercept = mu, size = 3)
+    g <- g + ggtitle(paste("mu = ", mu, ", MSE = ", round(mse, 2), sep = ""))
+    g
+}
+manipulate(myHist(mu), mu = slider(62, 74, step = 0.5))
+```
+###The least squares estimate is the empirical mean
+```{r}
+hist(galton$child, col = "blue", breaks = 100)
+meanChild <- mean(galton$child) 
+lines(rep(meanChild,100), seq(0,150,length = 100), col = "red", lwd = 5) #将点依次连成线
+plot(galton$parent, galton$child, pch = 19, col = "blue")
+```
+
+###Comparing childrens' heights and their parents' heights
+```{r}
+ggplot(galton, aes(x = parent, y = child)) + geom_point()
+```
+Size of point represents number of points at that (X, Y) combination (See the Rmd file for the code).
+```{r}
+library(dplyr)
+freqData <- as.data.frame(table(galton$child, galton$parent))
+names(freqData) <- c("child", "parent", "freq")
+freqData$child <- as.numeric(as.character(freqData$child))
+freqData$parent <- as.numeric(as.character(freqData$parent))
+g <- ggplot(filter(freqData, freq > 0), aes(x = parent, y = child))
+g <- g  + scale_size(range = c(2, 20), guide = "none" )
+g <- g + geom_point(colour="grey50", aes(size = freq+20, show_guide = FALSE))
+g <- g + geom_point(aes(colour=freq, size = freq))
+g <- g + scale_colour_gradient(low = "lightblue", high="white")                    
+g
+```
+##Regression through the origin
+```{r}
+myPlot <- function(beta)
+{
+  y <- galton$child - mean(galton$child)
+  x <- galton$parent - mean(galton$parent)
+  freqData <- as.data.frame(table(x,y))
+  names(freqData) <- c("child", "parent", "freq")
+  plot(
+    as.numeric(as.vector(freqData$parent)),
+    as.numeric(as.vector(freqData$child)),
+    pch = 21, col = "black", bg = "lightblue",
+    cex = .15 * freqData$freq, xlab = "parent", ylab = "child"
+    )
+  abline(0, beta, lwd = 3)
+  points(0, 0, cex = 2, pch = 19)
+  mse <- mean((y - beta * x) ^ 2 )
+  title(paste("beta = ",beta, " ms e = ", round(mse, 3))) 
+}
+manipulate(myPlot(beta), beta = slider(0.8, 1.2, step = 0.02))
+
+
+#ggplot2的画法
+y <- galton$child - mean(galton$child)
+x <- galton$parent - mean(galton$parent)
+freqData <- as.data.frame(table(x, y))
+names(freqData) <- c("child", "parent", "freq")
+freqData$child <- as.numeric(as.character(freqData$child))
+freqData$parent <- as.numeric(as.character(freqData$parent))
+myPlot <- function(beta){
+    g <- ggplot(filter(freqData, freq > 0), aes(x = parent, y = child))
+    g <- g  + scale_size(range = c(2, 20), guide = "none" )
+    g <- g + geom_point(colour="grey50", aes(size = freq+20, show_guide = FALSE))
+    g <- g + geom_point(aes(colour=freq, size = freq))
+    g <- g + scale_colour_gradient(low = "lightblue", high="white")                     
+    g <- g + geom_abline(intercept = 0, slope = beta, size = 3)
+    mse <- mean( (y - beta * x) ^2 )
+    g <- g + ggtitle(paste("beta = ", beta, "mse = ", round(mse, 3)))
+    g
+}
+manipulate(myPlot(beta), beta = slider(0.6, 1.2, step = 0.02))
+```
+##The solution
+```{r}
+lm(I(child - mean(child)) ~ I(parent - mean(parent)) - 1, data = galton)
+#show coefficient which minimize the value of mse 
+
+freqData <- as.data.frame(table(galton$child, galton$parent))
+names(freqData) <- c("child", "parent", "freq")
+freqData$child <- as.numeric(as.character(freqData$child))
+freqData$parent <- as.numeric(as.character(freqData$parent))
+g <- ggplot(filter(freqData, freq > 0), aes(x = parent, y = child))
+g <- g  + scale_size(range = c(2, 20), guide = "none" )
+g <- g + geom_point(colour="grey50", aes(size = freq+20, show_guide = FALSE))
+g <- g + geom_point(aes(colour=freq, size = freq))
+g <- g + scale_colour_gradient(low = "lightblue", high="white")  
+
+lm1 <- lm(galton$child ~ galton$parent)
+g <- g + geom_abline(intercept = coef(lm1)[1], slope = coef(lm1)[2], size = 3, colour = grey(.5))
+g
+```
+
+
+
