@@ -1,0 +1,211 @@
+---
+title: "20141211DM with R"
+author: "Yan Zhizhi"
+date: "Thursday, December 11, 2014"
+output: html_document
+---
+
+This file is a record for reading the book **<Data Mining with R>**.
+
+#Case 1 预测海藻数量
+
+##1.1读入数据
+DMwR包里自带数据框algae
+```{r, message=FALSE,results ='asis'}
+#install.packages("DMwR")
+library(DMwR)
+knitr::kable(head(algae))
+#Numbers of observations:
+nrow(algae)
+#Numbers of attributes(columns):
+ncol(algae)
+```
+
+##1.2数据的检查（可视化）
+###数据检查 --- MxPH
+```{r, warning=FALSE}
+summary(algae)
+library(car)
+par(mfrow = c(1,2))
+hist(algae$mxPH, prob = T, xlab = "",
+     main = "Histogram of maximum PH value", ylim = 0:1)
+#参数na.rm = T意味着在函数的计算中不考虑NA值
+#下述指令绘制了平滑版本的直方图（变量分布的核密度图）
+lines(density(algae$mxPH, na.rm = T))
+#下述指令在x轴附近绘制变量的实际值
+#函数jitter对要绘制的原始值略微进行了随机排列，避免了两值相等的可能性
+rug(jitter(algae$mxPH))
+qqnorm(algae$mxPH, main = "Normal QQ plot of maximum pH")
+par(mfrow = c(1,1))
+```
+
+###数据检查 --- oPO4
+#####箱线图说明
+- 方框的边界代表上四分位数和下四分位数    
+- 方框里的线代表中位数    
+- 记变量的四分位距为r    
+- 方框上面的小横线代表 小于等于（第三个四分位数 + 1.5r）的最大的观测值   
+- 方框下面的小横线代表 大于等于（第一个四分位数 - 1.5r）的最小的观测值
+```{r}
+boxplot(algae$oPO4, ylab = "Orthophosphate(oPO4)")
+rug(jitter(algae$oPO4),side = 2)
+abline( h = mean(algae$oPO4, na.rm = T), lty = 2)
+```
+
+####离群值观测
+##### 图形方法
+```{r}
+plot(algae$NH4, xlab = " ")
+abline( h = mean(algae$NH4, na.rm = T), lty = 1) #均值线
+abline( h = mean(algae$NH4, na.rm = T) + sd(algae$NH4, na.rm = T), 
+        lty = 2) #均值 + 1个标准差 线
+abline( h = median(algae$NH4, na.rm = T), lty = 3) #中位数线
+#identify是个交互式函数，允许用户单击图形中的点
+#对每一个单击的点，R将写下该点在algae中的行号。右击结束交互。
+#identify(algae$NH4)  #可是会跑死唉。。。
+```
+##### 另一种方法
+下面这段代码可以方便的获取 图中被单击的点的信息
+可是好像跑不了。。。
+```{r}
+#plot(algae$NH4, xlab = " ")
+#clikcked.lines <- identify(algae$NH4)
+#algae[clicked.lines,]
+```
+
+###研究海藻a1的分布
+```{r,message = FALSE}
+#绘制多因子箱线图
+#用lattice包
+library(lattice)
+bwplot(size ~ a1, data = algae, 
+       ylab = "River Size", xlab = "Algal A1")
+#基本画图包
+boxplot(a1 ~ size, data = algae, 
+        ylab = "Algal A1", xlab = "River Size")
+#分位箱图
+library(Hmisc)
+#小竖线代表数据的真实取值
+bwplot(size ~ a1, data = algae, panel =panel.bpplot,
+       probs = seq(.01, .49, by = .01), datadensity = TRUE,
+       ylab = "River Size", xlab = "Algal A1")
+```
+从分位箱图中我们可以看出，小型的河流有更高频率的海藻，但小型河流的海藻频率的分布比其他类型河流的海藻频率的分布分散。  
+
+###考虑a3在给定变量season和变量mnO2下的条件绘图
+```{r}
+#equal.count函数可以对连续变量进行离散化
+#na.omit用于提出向量中的所有NA值
+#number参数 设置了需要的区间个数
+#overlap参数设置两个区间之间的靠近边界的重合（意味着某些观测值将被分配到相邻的区间中）
+#每个区间的观测值个数相等
+minO2 <- equal.count(na.omit(algae$mnO2), number = 4, overlap = 1/5)
+#剔除水样中变量mnO2含有NA值的行
+#图中黄色的段表示minO的取值范围，从左到右，从下往上值依次变大
+stripplot(season ~ a3|minO2, data = algae[!is.na(algae$mnO2),])
+#为了便于理解这幅图，增加下述代码
+attach(algae)
+summary(minO2)
+temp <- subset(a3,(mnO2 >= 1.495)&(mnO2 <= 8.205)&season=="winter")
+sort(temp)#这里数据对应的图左下象限winter行的数据
+```
+
+##1.3数据缺失
+**因为在这一节会采用不同的方法处理缺失值，所以每次处理之前需重新读取一次原数据
+```{r, message=FALSE}
+data(algae)
+```
+####1.3.1方法一：直接剔除
+```{r}
+#检查至少存在一个缺失数据的观测值的数量占比
+nrow(algae[!complete.cases(algae),])/nrow(algae)
+algae <- na.omit(algae)
+```
+####1.3.2方法二：
+######先观察，剔除缺失值较多的观测样本
+```{r}
+data(algae)
+#找出每行数据的缺失值个数
+#apply()函数将 指定函数 用在数据框的每一行上
+apply(algae,1,function(x) sum(is.na(x)))
+#找出缺失值的数量超过变量数量的20%的观测值所在行
+which(apply(algae, 1, function(x) sum(is.na(x))) > as.integer(ncol(algae) * 0.2))
+#下述函数用于计算在指定百分比下，缺失值超过限额的观测值所在位置
+moreThanNAs <- function(data, ra = 0.2)
+  {
+     n <- as.integer(ra * ncol(data))
+     idxs <- which(apply(data, 1, function(x) sum(is.na(x))) > n)
+     return(idxs)
+  }
+algae <- algae[-moreThanNAs(algae,0.2),]
+```
+
+####1.3.3用最高频率值来填补缺失值
+```{r}
+#写个函数用于计算一组数里的均值，中位数，及二者之差
+MM <- function(data){
+  meanV <- mean(data, na.rm = T)
+  medianV <- median(data, na.rm = T)
+  Name <- c("mean", "median", "absolute distance")
+  Value <- c(meanV,medianV,abs(meanV - medianV))
+  ans <- data.frame(Name, Value)
+  return(ans)
+}
+shapiro.test(algae$mxPH)
+boxplot(algae$mxPH)
+MM(algae$mxPH)
+#用均值来补缺：
+algae[is.na(algae$mxPH),"mxPH"] <- mean(algae$mxPH, na.rm = T)
+#对偏态分布或者有离群值的分布而言，适合用中位数来补缺
+boxplot(algae$Chla)
+MM(algae$Chla)
+algae[is.na(algae$Chla), "Chla"] <- median(algae$Chla, na.rm = T)
+```
+**本文的DMwR自带了一个函数：centralImputation(),对数值型变量采用中位数填补NA值，对名义变量（也就是因子型）采用众数填补NA值
+```{r}
+data(algae)
+algae <- algae[-manyNAs(algae),]#先删去缺失超过20%的观测值
+algae <- centralImputation(algae) #再补上其余的确实值
+```
+
+####1.3.4通过变量的相关关系来填补缺失值
+```{r}
+data(algae)
+#应用如下命令来得到变量间的相关值
+#前三个值是名义变量，所以只去了4-18列
+#参数“complete.obs”表示计算相关值时忽略含有NA的记录
+symnum(cor(algae[,4:18], use = "complete.obs"))
+```
+从输出上看，NO3与NH4存在较弱的相关性(0.72),PO4与oPO4存在较高的相关值   
+接着来看是这几组数据之间是哪几个观测值出现了缺失   
+```{r, results='hold'}
+which(is.na(algae$NH4))
+which(is.na(algae$NO3))
+which(is.na(algae$PO4))
+which(is.na(oPO4))
+manyNAs(algae)#DMwR自带的函数：缺失超过（默认参数为20%）的观测值所在的位置
+```
+
+```{r}
+algae <- algae[-manyNAs(algae),]
+#在剔除62和199号观测样本之后，我们只剩了28号的PO4值需要填补
+#首先找到两者之间的线性关系
+lm1 <- lm(PO4 ~ oPO4, data = algae)
+algae[28,"PO4"] <- lm1$coefficients[1] + lm1$coefficients[2] * algae[28,"oPO4"] 
+#假设存在多个缺失，这个时候就可以用函数来解决：
+fillPO4 <- function(oP){
+  if(is.na(oP))
+    return(NA)
+  else
+    return(lm1$coefficients[1] + lm1$coefficients[2] * oP)
+}
+algae[is.na(algae$PO4),"PO4"] <- sapply(algae[is.na(algae$PO4), "oPO4"], fillPO4)
+```
+
+
+
+
+
+
+
+
