@@ -80,48 +80,29 @@ data(algae)
 
 
 algae[!complete.cases(algae),]
-
-
 nrow(algae[!complete.cases(algae),])
-
-
 algae <- na.omit(algae)
-
-
 algae <- algae[-c(62,199),]
-
-
 apply(algae,1,function(x) sum(is.na(x)))
 
 
 data(algae)
 manyNAs(algae,0.2)
-
-
 algae <- algae[-manyNAs(algae),]
-
-
 algae[48,'mxPH'] <- mean(algae$mxPH,na.rm=T)
-
-
 algae[is.na(algae$Chla),'Chla'] <- median(algae$Chla,na.rm=T)
 
 
 data(algae)
 algae <- algae[-manyNAs(algae),]
 algae <- centralImputation(algae)
-
-
 cor(algae[,4:18],use="complete.obs")
-
 symnum(cor(algae[,4:18],use="complete.obs"))
 
 
 data(algae)
 algae <- algae[-manyNAs(algae),]
 lm(PO4 ~ oPO4,data=algae)
-
-
 algae[28,'PO4'] <- 42.897 + 1.293 * algae[28,'oPO4']
 
 
