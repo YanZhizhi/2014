@@ -1,0 +1,153 @@
+---
+title: "D3js reading note"
+author: "Yan Zhizhi"
+date: "Wednesday, December 17, 2014"
+output: html_document
+---
+ 
+#0.Description of this file  
+materials from:
+
+> d3js.org
+
+***关于文档的说明***
+```
+在阅读的过程中，考虑有的英文单词无法准确的翻译，有的英文单词可能是D3js里特有的术语，因而在本文里保留了很多英文单词。
+```
+        
+         
+###Fundamental description
+```
+D3.js是个JavaScript库，用于操纵基于数据的文档。
+D3是基于web标准的，结合了可视化组件以及DOM操纵的数据驱动方法。 
+它允许绑定任意数据到DOM，然后将数据驱动转换应用到Document中。你可以使用它用一个数组创建基本的HMTL表格，或是利用它的流体过度和交互，用相似的数据创建惊人的SVG条形图。
+```
+```
+(DOM: Document Object Model; 文档对象模型)  
+from互动百科：DOM解决了Netscaped的Javascript和Microsoft的Jscript之间的冲突，给予web设计师和开发者一个标准的方法，让他们来访问他们站点中的数据、脚本和表现层对像。
+```
+
+#1.Introduction 
+这部分介绍了D3的**优点**： 
+
+- 灵活性：不是追求所有可行特性的大型框架，而是基于数据对文档进行高效操纵  
+- 快捷，支持大的数据集以及交互、动画等动态展示  
+- 代码复用：functional style；多样的组件与插件  
+
+#2.Selections 选项
+D3采用的是声明式的方法（declarative approach）   
+在任意结点（nodes）进行操作 称之为 selections   
+例如，要定义图片元素中字段的颜色    
+
+>  d3.selectAll("p").sytle("color", "white"); 
+
+或是对某个独立的结点进行设置：   
+
+>  d3.select("body").style("background-color", "black");
+
+上面语句里的p和body都是tag name。元素可以通过多种方式被选择：
+containment, attribute values, class and ID
+      
+D3提供了多种改变结点的方法：
+
+- 设置attributes或是styles
+- 注册事件监听器
+- 增加、移除或是给结点排序
+- 改变HTML或text的内容
+
+#3.Dynamic Properties 动态性质
+在D3中，styles, attributes以及其他的一些properties都将被当做数据函数而不是简单的常量。    
+D3提供了许多内置的可重用函数和函数工厂，例如为区域、线条、饼图等设的图形原语。    
+例如：    
+
+- 图形的随机配色:
+
+```    
+d3.selectAll("p").style("color", function(){   
+return "hsl(" + Math.random() * 360 + ",100%,50%)";   
+});
+```
+
+- 改变奇偶结点的灰色的深度
+
+```
+d3.selectAll("p").style("color", function(d, i) {
+  return i % 2 ? "#fff" : "#eee";
+});
+```
+- 计算的properties常使用绑定数据   
+
+  在默认 join-by-index状态下，数据数组的第一个元素被传给selection的第一个结点，第二个元素给第二个结点，以此类推。例如，当你将一个数组的数字与图像元素绑定时，你可以使用这些数字来计算动态字体的size。
+```
+d3.selectAll("p")
+    .data([4, 8, 15, 16, 23, 42])
+    .style("font-size", function(d) { return d + "px"; });
+```
+*当数据与文档绑定后，就可省略数据操作符；D3会自己搜寻之前绑定的data。*
+
+#4.Enter and Exit
+enter和exit也是D3的selections。
+使用这两个selection我们可以为将到来的数据创建新的结点，以及移除过时的结点。
+在当前结点数小于数据数组里的数据元素数量时，超出的那部分数据构成了enter selection。
+```
+d3.select("body").selectAll("p")
+    .data([4, 8, 15, 16, 23, 42])
+  .enter().append("p")
+    .text(function(d) { return "I’m number " + d + "!"; });
+```
+对于data操作符来说，更新结点是默认的selection。当你忘记了enter和exit这两个selections时，
+你就会自动选择那些存在相应数据的元素。一个常见的模式是将初始selection分为三个部分：
+
+- the updating nodes to modify
+- the entering nodes to add
+- the exiting nodes to remove
+
+示例语句如下：
+```
+// Update…
+var p = d3.select("body").selectAll("p")
+    .data([4, 8, 15, 16, 23, 42])
+    .text(String);
+
+// Enter…
+p.enter().append("p")
+    .text(String);
+
+// Exit…
+p.exit().remove();
+```
+通过对这三种case分开处理，我们可以精确地指定哪些操作在哪些结点上运行。这在提升性能的同时能对transitions有更好的控制。例如，通过一个条形图我们可以初始化一个使用旧scale的entering bar，然后通过updating和exiting过渡到新scale。   
+
+D3允许我们基于数据来转换文档，这包含了创建元素和销毁元素两部分。D3允许我们变更文档来作为用户交互、动画甚至是第三方的异步通知的响应。更有可能的是一种混合的方法，即文档最初在服务器上创建，然后在客户端通过D3来更新。
+
+#5.Transformation, not Representation 转换，而非呈现
+D3并非一个新的图形化展示方式。与Processing，Raphael和Protovis不同的是，D3的标记词库（vocabulary of marks）直接来自web标准：HTML, SVG和CSS.举例来说，我们可以用D3创建SVG元素并用外部样式表（external stylesheets）来设计它们。我们可以使用composite filter effects, dashed strokes以及clipping等效果。若明天浏览器支持了什么新特性，我们也可以立即使用这些特性。
+更好的是，D3可以用浏览器内置的element inspector来调试。
+
+#6.Transitions
+D3对于transformation的关注 -> 动态的transitions   
+随着时间的推进，转换中逐渐插入了styles以及attributes。   
+渐变可以通过"elastic", "cubic-in-out"以及"linear"等easing函数来控制。D3的内插程序同时支持原语（primitives）以及复合值（compound values）。我们还可以通过扩展D3的内插程序注册表来支持复杂的特性和数据结构。
+
+```
+primitives: numbers and numbers embedded within stringgs(front sizes,  path data, etc.)
+```
+
+例如：
+
+- 将背景色渐变至黑色
+
+```
+d3.select("body").transition()
+    .style("background-color", "black");
+```
+
+- 用交错延迟调整符号图上圆圈的大小
+
+```
+d3.selectAll("circle").transition()
+    .duration(750)
+    .delay(function(d, i) { return i * 10; })
+    .attr("r", function(d) { return Math.sqrt(d * scale); });
+```
+D3只调整那些实际发生变化的属性，这个方法减少了大量的开销，使得高帧速下的更大的图形复杂性成为可能。D3还允许基于事件对复杂转换进行排序。D3并不会替代浏览器的工具箱，但却以一种更易用的方式公开了它。
