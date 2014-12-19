@@ -1,0 +1,15 @@
+---
+title: "John Hopkins_Regression Models_20141222"
+author: "Yan Zhizhi"
+date: "Friday, December 19, 2014"
+output: html_document
+---
+vedio 02-01 Multivariable regression - 34min
+
+vedio 02-02 Multivariable regression examples - 68min
+
+vedio 02-03 
+
+vedio 02-04 Residuals, diagnostics, variation - 17min
+
+vedio 02-05 Multiple variables - 25min
