@@ -217,19 +217,15 @@ rt.predictions.a1 <- predict(rt.a1,algae)
 (mae.a1.lm <- mean(abs(lm.predictions.a1-algae[,'a1'])))
 (mae.a1.rt <- mean(abs(rt.predictions.a1-algae[,'a1'])))
 
-
 (mse.a1.lm <- mean((lm.predictions.a1-algae[,'a1'])^2))
 (mse.a1.rt <- mean((rt.predictions.a1-algae[,'a1'])^2))
-
 
 (nmse.a1.lm <- mean((lm.predictions.a1-algae[,'a1'])^2)/
    mean((mean(algae[,'a1'])-algae[,'a1'])^2))
 (nmse.a1.rt <- mean((rt.predictions.a1-algae[,'a1'])^2)/
    mean((mean(algae[,'a1'])-algae[,'a1'])^2))
 
-
 regr.eval(algae[,'a1'],rt.predictions.a1,train.y=algae[,'a1'])
-
 
 old.par <- par(mfrow=c(1,2))
 plot(lm.predictions.a1,algae[,'a1'],main="Linear Model",

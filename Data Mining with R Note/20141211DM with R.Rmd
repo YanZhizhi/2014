@@ -279,8 +279,73 @@ algae <- algae[-manyNAs(algae), ]
 rt.a1 <- rpart(a1 ~ .,data=algae[,1:12]);rt.a1
 prettyTree(rt.a1)
 printcp(rt.a1)
+#xerror是估计误差, xstd是标准误差
+#平均相对误差是 xerror ± estd
 plotcp(rt.a1)
 ```
+rpart函数有3个参数：cp, minsplit & maxdepth，分别对应树构建结束的三个条件（满足其一即可）：
 
+- 偏差的减少小于某一个给定的界限值（cp）
+- 结点中样本数量少于给定的界限值（minsplit）
+- 树的深度大于某个给定的界限值（maxdepth）
 
+三个参数的默认值分别为：**0.01, 20, 30**
 
+```{r}
+rt2.a1 <- prune(rt.a1,cp=0.08)#通过改变cp值对rt.a1进行修剪
+rt2.a1
+printcp(rt2.a1)
+
+set.seed(1234) # Just to ensure  same results as in the book
+(rt.a1 <- rpartXse(a1 ~ .,data=algae[,1:12])) #参数se的默认值为1
+
+first.tree <- rpart(a1 ~ .,data=algae[,1:12])
+pruned.tree <- snip.rpart(first.tree,c(4,7))#该函数用于交互地对树进行修剪
+prettyTree(pruned.tree)
+
+#下面两句采取了交互式的方法来修剪回归树。。
+#indows()
+#prettyTree(first.tree)
+#snip.rpart(first.tree)
+```
+
+##1.5模型的评价与选择
+```{r}
+#MAE 平均绝对误差 Mean absolute error
+#NMSE 标准化后的平均绝对误差，取值在0-1之间，越小说明模型越好
+lm.predictions.a1 <- predict(final.lm,clean.algae)
+rt.predictions.a1 <- predict(rt.a1,algae)
+
+regr.eval(algae[,'a1'],rt.predictions.a1,train.y=algae[,'a1'])
+
+#模型预测值和真实值的散点图
+old.par <- par(mfrow=c(1,2))
+plot(lm.predictions.a1,algae[,'a1'],main="Linear Model",
+     xlab="Predictions",ylab="True Values")
+abline(0,1,lty=2)
+plot(rt.predictions.a1,algae[,'a1'],main="Regression Tree",
+     xlab="Predictions",ylab="True Values")
+abline(0,1,lty=2)
+par(old.par)
+```
+
+可以看出这两个模型在很多个案上的性能比较差，很多点都不在线上
+```{r, eval=FALSE}
+#这段由于要交互，就不在html生成时执行了
+#函数identify()可用于检查那些预测特别差的样本点
+windows()
+plot(lm.predictions.a1,algae[,'a1'],main="Linear Model",
+     xlab="Predictions",ylab="True Values")
+abline(0,1,lty=2)
+algae[identify(lm.predictions.a1,algae[,'a1']),] 
+#然后自己选中比较差的点，结束交互后那些点的信息会被显示出来
+```
+
+考虑海藻的量不可能取负值，而线性模型的预测结果中存在负值，
+因而可以用海藻量的最小取值来优化线性回归模型。
+
+```{r}
+sensible.lm.predictions.a1 <- ifelse(lm.predictions.a1 < 0,0,lm.predictions.a1)
+regr.eval(algae[,'a1'],lm.predictions.a1,stats=c('mae','mse'))
+regr.eval(algae[,'a1'],sensible.lm.predictions.a1,stats=c('mae','mse'))
+```
