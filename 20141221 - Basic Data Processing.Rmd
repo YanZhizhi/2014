@@ -1,0 +1,181 @@
+---
+title: "Data Processing"
+author: "Yan Zhizhi"
+date: "Sunday, December 21, 2014"
+output: html_document
+---
+This is a file about data processing using R.   
+   
+Reference:*4 data wrangling tasks in R for advanced beginners*    
+http://www.computerworld.com/article/2486425/business-intelligence-4-data-wrangling-tasks-in-r-for-advanced-beginners.html
+
+```{r}
+fy <- c(2010,2011,2012,2010,2011,2012,2010,2011,2012) 
+company <- c("Apple","Apple","Apple","Google","Google","Google","Microsoft","Microsoft","Microsoft")
+revenue <- c(65225,108249,156508,29321,37905,50175,62484,69943,73723) 
+profit <- c(14013,25922,41733,8505,9737,10737,18760,23150,16978) 
+companiesData <- data.frame(fy, company, revenue, profit)
+companiesData
+
+companiesData$fy <- as.factor(companiesData$fy)
+```
+###Add a column to an existing data frame
+#####Syntax: 1
+```{r}
+companiesData$margin <- (companiesData$profit / companiesData$revenue) * 100
+companiesData
+companiesData$margin <- round(companiesData$margin, 1) 
+#round()用于控制小数点位数
+companiesData
+```
+#####Syntax 2: R's transform() function
+```{r}
+companiesData <- transform(companiesData, 
+             cost = companiesData$revenue - companiesData$profit)
+companiesData
+```
+#####Syntax 3: R's apply() function
+dataFrame$newColumn <- apply(dataFrame, 1, function(x){...})
+第二个参数值为1， 意为apply a function by row.      
+值为2，意为apply a function by column.    
+apply函数是会应用于每一个元素的。。如果有的列不适合，需要通过数据集来指出（如下文指出列名）
+```{r}
+companiesData$sums <- apply(companiesData[,c("revenue", "profit")], 1, sum)
+companiesData
+```
+
+#####Syntax 4: mapply()
+语法格式：   
+dataFrame\$newColumn <- mapply(someFunction, dataFrame\$column1, dataFrame\$column2, dataFrame\$column3)  
+
+```{r}
+profitMargin <- function(netIncome, revenue) { 
+     mar <- (netIncome/revenue) * 100 
+     mar <- round(mar, 1) 
+     return(mar) 
+  }
+companiesData$margin_mapply <- mapply(function(x, y) 
+  round((x/y) * 100, 1), 
+  companiesData$profit, companiesData$revenue)
+companiesData
+```
+mapply的一大好处:can use columns from different data frames(但必须同长度)   
+###### lapply(), sapply()
+lapply **returns a list** of the same length as X, each element of which is the result of applying FUN to the corresponding element of X.   
+
+#####Update: dplyr(using dplyr to add a column)
+```{r, message=FALSE}
+library(dplyr)
+companiesData<- mutate(companiesData, margin2 = round((profit/revenue) * 100, 1)) 
+companiesData
+detach(package:dplyr)
+```
+
+###Getting summaries by subgroups of your data
+```{r}
+highestMargin <- companiesData[companiesData$margin == max(companiesData$margin),]
+highestMargin
+highestMargin <- subset(companiesData, margin==max(margin))
+highestMargin
+```
+#####找到每个公司margin最大的记录
+ddply()函数，第一个参数：数据框；第二个参数：用于group by的列名（一个或多个）；
+第三个参数：返回的东西，增加了新列的数据框或是单纯的值（summarize or transform,默认是transform）；
+第四个参数：给新列命名、使用的函数
+```{r, message=FALSE}
+library(plyr)
+#split a data frame by multiple factors
+#用"."来代替引号也可
+ddply(companiesData, .(company), summarize, highest = max(margin))
+knitr::kable(ddply(companiesData, .(company), transform, highest = max(margin)))
+ddply(companiesData, 'company', function(x) x[x$margin==max(x$margin),])
+ddply(companiesData, NULL, summarize, highest = max(margin))
+detach(package:plyr)
+```
+事实上，用dplyr包比用plyr包的函数快很多。。。
+由于plyr包和dplyr包存在一定重叠，所以在用dplyr之前要**用detach函数关闭掉plyr包**
+```{r,eval=FALSE}
+#用于查看dplyr包里的函数的说明
+vignette(package = "dplyr", "introduction")
+```
+
+```{r}
+library(dplyr)
+myresults <- companiesData %>% group_by(company) %>% mutate(highestMargin = max(margin), lowestMargin = min(margin)) 
+myresults
+# %>%  is a "chaining" operation that allows you to string together multiple commands on a data frame
+highestProfitMargins <- companiesData %>% group_by(company)%>% summarise(bestMargin = max(margin)) 
+#由dplyr包产生的数据框比较特别，如果要用非dplyr包对它进行操作的话，要先转为普通的数据框：
+highestProfitMargins <- as.data.frame(highestProfitMargins)
+```
+%>% 的用法：
+```
+dataframename %>% firstfunction(argument for first function) %>% secondfunction(argument for second function) %>% thirdfunction(argument for third function) 
+```
+
+### 时间 Grouping by date range
+```{r}
+vDates <- as.Date(c("2013-06-01", "2013-07-08", "2013-09-01", "2013-09-15"))
+class(vDates)
+vDates.bymonth <- cut(vDates, breaks = "month")
+class(vDates.bymonth); vDates.bymonth
+```
+
+### 排序 sorting
+```{r}
+#order函数返回的是line number，即从小到大排依次是哪一行记录
+companyOrder <- order(companiesData$margin); companyOrder
+companiesData$margin
+companiesData[order(companiesData$margin),c("fy", "company","margin")]
+#降序排列
+companyOrder <- order(-companiesData$margin)
+#一个升序，一个降序
+companiesData[order(companiesData$fy, -companiesData$margin),]
+#在plyr与dplyr包里均有arange()函数：arrange(dataFrameName, columnName, secondColumnName)
+#按margin降序排列
+companiesOrdered <- arrange(companiesData, desc(margin));companiesOrdered
+#按margin升序排列
+companiesOrdered <- arrange(companiesData, margin);companiesOrdered
+```
+
+### Reshape：wide变long
+在案例数据中，fy与company属于category，而其余属于value
+由wide变long：其实是每行只保留1个度量名和值
+方法：
+
+- reshape2包中的melt()函数
+- 用法：longData <- melt(your original data frame, a vector of your category variables)
+
+ reshape2 calls category variables "id.vars" (short for ID variables)    
+  Measurement variables in reshape2 are somewhat more intuitively called measure.vars.
+```{r}
+library(reshape2)
+#melt()的第一个参数为待改变的数据框，第二个参数为数据框内用作category的变量名
+companiesLong <- melt(companiesData, c("fy", "company")); 
+head(companiesLong)
+
+companiesLong <- melt(companiesData, 
+                      id.vars=c("fy", "company"), 
+                      measure.vars=c("revenue", "profit", "margin"), 
+                      variable.name="financialCategory", 
+                      value.name="amount")
+head(companiesLong)
+```
+
+###Reshape: long变wide
+
+- dcast()函数
+- 第一个参数为要做处理的数据框
+- 第二个参数：id variables ~ variable variables
+```{r}
+companiesWide <- dcast(companiesLong, 
+                       fy + company ~ financialCategory,
+                       value.var="amount")
+companiesWide
+#其实巧用melt()和dcast()就可以到group by的效果了吧。。
+companiesWide2 <- dcast(companiesLong, 
+                        company ~ financialCategory, 
+                        mean, 
+                        value.var = "amount")
+companiesWide2
+```
