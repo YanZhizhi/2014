@@ -1,0 +1,127 @@
+---
+title: '"apply" in R'
+author: "Yan Zhizhi"
+date: "Thursday, January 01, 2015"
+output: html_document
+---
+
+source: https://nsaunders.wordpress.com/2010/08/20/a-brief-introduction-to-apply-in-r/
+
+Content:
+1.apply
+2.
+
+#1. apply
+apply 将函数应用于array或matrix的边际   
+返回vector或array或list
+```{r}
+# create a matrix of 10 rows x 2 columns
+m <- matrix(c(1:10, 11:20), nrow = 10, ncol = 2)
+# mean of the rows
+apply(m, 1, mean)
+# mean of the columns
+apply(m, 2, mean)
+# divide all values by 2
+apply(m, 1:2, function(x) x/2)
+```
+
+#2. by
+by类似于tapply，可以对数据做分组处理 
+它是对tapply的封装   
+作用于数据框
+```{r}
+attach(iris)
+head(iris)
+# get the mean of the first 4 variables, by species
+by(iris[, 1:4], Species, colMeans)
+```
+
+#3. eapply
+该函数作用于一个环境的所有变量，以list的方式返回结果   
+```{r}
+# a new environment
+e <- new.env()
+# two environment variables, a and b
+e$a <- 1:10
+e$b <- 11:20
+# mean of the variables
+eapply(e, mean)
+```
+
+#4.l apply
+该函数返回与输入的元素X相同长度的list，list里的元素是将函数作用于X中对应的每个元素得到的结果   
+```{r}
+# create a list with 2 elements
+l <- list(a = 1:10, b = 11:20)
+# the mean of the values in each element
+lapply(l, mean)
+# the sum of the values in each element
+lapply(l, sum)
+```
+
+##4.1 sapply
+sapply视情况返回向量或者矩阵   
+That simply means that if lapply would have returned a list with elements $a and $b, sapply will return either a vector, with elements [[‘a’]] and [[‘b’]], or a matrix with column names “a” and “b”.
+```{r}
+# create a list with 2 elements
+l <- list(a = 1:10, b = 11:20)
+# mean of values using sapply
+l.mean <- sapply(l, mean)
+# what type of object was returned?
+class(l.mean)
+l.mean
+```
+
+##4.2 vapply
+返回的是数组，数组的列名是原列表的元素名
+```{r}
+l <- list(a = 1:10, b = 11:20)
+# fivenum of values using vapply
+l.fivenum <- vapply(l, fivenum, c(Min.=0, "1st Qu."=0, Median=0, "3rd Qu."=0, Max.=0))
+class(l.fivenum)
+l.fivenum
+```
+
+##4.3 replicate 
+usually involve random number generation    
+2个强制参数：the number of replications and the function to replicate
+1个可选参数：simplify = T, tries to simplify the result to a vector or matrix
+```{r}
+m1 <- replicate(5, rnorm(5)); m1
+m2 <- replicate(5, rnorm(5), simplify = F);m2
+class(m1); class(m2)
+```
+
+#5. mapply
+不太好描述。。我的理解是这个函数可以把多个列的对应位置的元素作为某个函数的参数来进行操作   
+```{r}
+l1 <- list(a = c(1:10), b = c(11:20))
+l2 <- list(c = c(21:30), d = c(31:40))
+l1; l2
+# sum the corresponding elements of l1 and l2
+mapply(sum, l1$a, l1$b, l2$c, l2$d)
+```
+
+#6. rapply
+该函数是lapply的一个循环版本。。。其实是用不同的方式将函数应用于list上
+```{r}
+# let's start with our usual simple list example
+l <- list(a = 1:10, b = 11:20); l
+# log2 of each value in the list
+rapply(l, log2)
+# log2 of each value in each list
+rapply(l, log2, how = "list")
+# what if the function is the mean?
+rapply(l, mean)
+rapply(l, mean, how = "list")
+```
+
+#7. tapply
+这个函数也可以用来对数据进行分组处理，与by有些类似   
+```{r}
+attach(iris)
+# mean petal length by species
+tapply(iris$Petal.Length, Species, mean)
+#回顾一下by
+by(iris$Petal.Length, Species, mean)
+```
