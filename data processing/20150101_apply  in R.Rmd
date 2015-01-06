@@ -48,7 +48,7 @@ e$b <- 11:20
 eapply(e, mean)
 ```
 
-#4.l apply
+#4.lapply
 该函数返回与输入的元素X相同长度的list，list里的元素是将函数作用于X中对应的每个元素得到的结果   
 ```{r}
 # create a list with 2 elements

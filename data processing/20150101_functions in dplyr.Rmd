@@ -1,0 +1,131 @@
+---
+title: "functions in dplyr"
+author: "Yan Zhizhi"
+date: "Thursday, January 01, 2015"
+output: html_document
+---
+
+#1.Single table verbs
+
+- filter(): filter()可以按行选子集,并可用&以及|来连接对同一列的不同筛选条件
+- slice(): 按行号来选择子集
+- arrange()：对各行记录按指定列进行重新排序
+- select() & rename()：按列选择子集；rename可用于更改旧列的名字
+- distinct()：抽取独一无二的行
+- mutate() & transmute()：加入新列
+- summarise()：结果通常只有一行，用于汇总
+- sample_n()：按行进行随机抽样，抽出n行记录
+- sample_frac()：按行进行随机抽样，抽出一定比例的记录
+
+###filter(), slice() and arrange()
+```{r, message=FALSE}
+library(dplyr)
+library(nycflights13)
+filter(flights, month == 1, day == 1)
+slice(flights, 1:10)
+
+arrange(flights, year, desc(month) ,day)
+```
+
+###selcet columns use select()
+select()中还可以套用 starts_with(), ends_with(), matches() and contains()函数  
+可以在控制台输入?select()
+```{r}
+select(flights, year:day)
+# 新列名 = 旧列名
+rename(flights, tail_num = tailnum) 
+
+
+```
+
+###distinct(), mutate() and transmute()
+```{r}
+distinct(select(flights, year, month))
+head(mutate(flights, 
+            gain = arr_delay - dep_delay,
+            speed = distance / air_time * 60))
+head(transmute(flights,
+               gain = arr_delay - dep_delay,
+               speed = distance / air_time * 60))
+```
+
+###summarise() and sample_...
+```{r}
+summarise(flights, delay = mean(dep_delay, na.rm = TRUE))
+sample_n(flights, 10)
+sample_frac(flights, 0.01)
+nrow(sample_frac(flights,0.01)); nrow(flights)
+```
+
+#Some other important functions
+
+- group_by()
+-
+
+```{r, warnings = FALSE}
+planes <- group_by(flights, tailnum);planes
+#count = n()用于计数
+delay <- summarise(planes, count = n(),dist = mean(distance, na.rm = TRUE),
+                   delay = mean(arr_delay, na.rm = TRUE))
+delay <- filter(delay, count > 20, dist < 2000); delay
+
+library(ggplot2)
+# Interestingly, the average delay is only slightly related to the# average distance flown by a plane.
+ggplot(delay, aes(dist, delay)) +
+  geom_point(aes(size = count), alpha = 1/2) +
+  geom_smooth() +
+  scale_size_area()
+
+destinations <- group_by(flights, dest)
+summarise(destinations, 
+          planes = n_distinct(tailnum), 
+          flights = n())
+```
+
+###Chaining
+```{r}
+a1 <- group_by(flights, year, month, day)
+a2 <- select(a1, arr_delay, dep_delay)
+a3 <- summarise(a2,
+  arr = mean(arr_delay, na.rm = TRUE),
+  dep = mean(dep_delay, na.rm = TRUE))
+a4 <- filter(a3, arr > 30 | dep > 30)
+head(a4)
+
+#下面这段代码与上面几行代码等价
+head(
+  filter(
+  summarise(
+    select(
+      group_by(flights, year, month, day),
+      arr_delay, dep_delay
+    ),
+    arr = mean(arr_delay, na.rm = TRUE),
+    dep = mean(dep_delay, na.rm = TRUE)
+  ),
+  arr > 30 | dep > 30))
+#又一种写法，使用了“%>%”来连接各个公式
+head(
+  flights %>%
+  group_by(year, month, day) %>%
+  select(arr_delay, dep_delay) %>%
+  summarise(
+    arr = mean(arr_delay, na.rm = TRUE),
+    dep = mean(dep_delay, na.rm = TRUE)
+  ) %>%
+  filter(arr > 30 | dep > 30))
+```
+
+#dplyr包的优势
+
+- 提供了默认的print()方法，避免了满大屏的输出
+- 主要用于处理data.frame格式
+- do()函数的使用
+
+```{r}
+by_cyl <- group_by(mtcars, cyl)
+do(by_cyl, head(., 2))
+
+models <- by_cyl %>% do(mod = lm(mpg ~ disp, data = .))
+models
+```
