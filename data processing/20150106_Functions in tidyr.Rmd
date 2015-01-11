@@ -1,0 +1,43 @@
+---
+title: "Functions in tidyr"
+author: "Yan Zhizhi"
+date: "Tuesday, January 06, 2015"
+output: html_document
+---
+
+#Function list
+
+- expand
+- extract
+- extract numeric
+- gather
+- separate
+- seq range
+- spread
+- unite
+- unnest
+
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```

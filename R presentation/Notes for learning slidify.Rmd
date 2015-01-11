@@ -1,0 +1,18 @@
+---
+title: "20150111_Notes for learning slidify"
+author: "Yan Zhizhi"
+date: "Sunday, January 11, 2015"
+output: html_document
+---
+
+#0.基本准备
+```{r, eval=FALSE}
+library(devtools)
+install_github("ramnathv/slidify")
+install_github("ramnathv/slidifyLibraries")
+
+library(slidify)
+author('example')
+slidify('index.Rmd') 
+```
+
