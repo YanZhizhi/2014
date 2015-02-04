@@ -6,17 +6,22 @@ output: html_document
 ---
 
 Book: <统计学：从数据到结论>
+      <统计建模与R软件>
 
-#1.主成分分析 principal component analysis
-###Step1：选取主成分
+读取数据：
 ```{r}
 w <- read.table("e://R_data//practice//data//From data to conclusion//who.txt",
                 sep = ",", header = TRUE)
+```
+
+#1.主成分分析 principal component analysis --《统计学》
+###Step1：选取主成分
+```{r}
 b <- eigen(cor(w)) #解相关阵cor(w)的特征值问题——找主成分的过程
 #cumsum(1:10)得到的结果是：[1]  1  3  6 10 15 21 28 36 45 55
 data.frame(b$va, b$va/sum(b$va), cumsum(b$va)/sum(b$va))
 par(mfrow = c(1,2))
-#左图为悬崖碎石土，代表每个成分（单个主轴）的轴长占总轴长度总和的比例
+#左图为悬崖碎石图，代表每个成分（单个主轴）的轴长占总轴长度总和的比例
 #右图为累积特征值比例（通常取到85%）
 plot(b$va, type = "o", main = "Scree Plot",
      xlab = "Component Number", ylab = "Eigen Value")
@@ -52,9 +57,20 @@ plot(w1%*%b$ve[,1:2], type = "n", xlab = "Comp 1", ylab = "Comp 2")
 text(w1%*%b$ve[,1:2], row.names(w), cex = 0.5)
 ```
 
+#1.主成分分析 principal component analysis --《统计建模与R软件》
+```{r}
+#参数cor = TRUE代表用样本的相关矩阵进行主成分分析；cor= F代表用样本的协方差阵做
+model <- princomp(w, cor = TRUE, scores = TRUE)
+summary(model, loadings = TRUE)
+head(predict(model))
+screeplot(model, type = "lines") #碎石图
+```
+
+
 #2.因子分析（Factor Analysis）
 ###选取因子 
 因子分析是事先确定要找多少个成分。
+原始变量 是 因子的线性组合（得到的参数是拿来 和 因子相乘的。。。）
 因子分析比主成分多一道工序：因子旋转（factor rotation）
 ```{r}
 #第二个参数表示只要两个因子
@@ -78,19 +94,95 @@ plot(a1$scores, type = "n", xlab = "Factor 1", ylab = "Factor 2")
 text(a1$scores, row.names(w), cex = 0.5)
 ```
 
-***主成分分析和因子分析只能对互相相关的数量变量进行降维***
+***主成分分析和因子分析只能对互相相关的数量变量进行降维***   
 ***如果变量没有近似的多维正态分布，降维可能不理想***
-```{r}
+
+#3.聚类分析
+
+###3.1 kmeans聚类
+
+\  这种聚类方法需要事先确定类别数量，且适合球形聚类。在寻找合适的k值时，可以通过观察离差平方和的走势，当从某个点开始趋于平稳时，说明此时的k的取值就比较合适了。
+
+```{r} 
+d0 <- read.table("e://R_data//practice//data//From data to conclusion//trans.txt",
+                sep = " ", header = TRUE)
+
+#观察离差平方和
+sumDist <- numeric()
+for(i in 1:10){
+  temp <- kmeans(d0, i)
+  sumDist[i] <- sum(temp$withins) 
+}
+plot(sumDist, type = "l")
+points(sumDist,type = "o")
+text(sumDist)
+
+a <- kmeans(d0, 5)
+#观察聚类的中心点
+a$centers
 
 ```
 
+###3.2层次聚类 hierarchical cluster
+
+\  这种聚类方法不需要事先确定分类数量，它通过把最近的点先合并为一类，然后不断聚类得到。
+
 ```{r}
+table(a$cluster)
+#为了演示的方便,去除掉类别最多的那一类
+d1 <- d0[a$cluster != 4,]
+
+#计算距离,默认为欧式距离
+distance <- dist(d1, method = "euclidean")
+
+hh <- hclust(distance, "ave")
+#得到聚类树形图，dendrogram
+plot(hh, label = row.names(d1), xlab = "Country of Area")   
+
+result <- cutree(hh, 3)#根据层次聚类的结果将数据分为3类，存到result列中
+table(result)
+```
+
+\  在图中，纵向的尺度和计算出的距离成比例
+
+#4.典型相关分析
+
+\  典型相关分析的目的是为人们感兴趣的两组变量各找到一个（或多个）有综合意义的代表变量，并通过研究代表变量之间的关系来考察两组变量之间的关系。  
+\  典型相关分析(canonical correlation analysis)就是要找到这两组变量线性组合的系数使得这两个由线性组合生成的变量（和其他线性组合相比）之间的相关系数最大。
+
+```{r, message=FALSE}
+w <- read.table("e://R_data//practice//data//From data to conclusion//tv.txt",
+                 header = TRUE)
+X = w[,1:3]
+Y = w[,4:6]
+library(CCA)
+#由于这次每组变量中变量个数均为3，因此最多有3对典型相关变量
+#一般典型相关变量的个数不会超过 min(p,q) p和q为两组变量中变量的个数
+res <- cc(X,Y)
+```
+
+\  从相关系数上看，V1与W1是最典型的一对相关变量
+
+```{r}
+
+#观察典型相关系数
+res$cor
+#观察线性组合的系数
+res$xcoef
+res$ycoef
+
+#由典型相关变量得到的（X组的）x得分x-score和（Y组的）y得分y-score分别与X组和Y组原始变量（即我们的变量代码X与Y）之间的相关系数（产生4个表，对应于4种相关组合）
+#x-score 与 y-score其实就是根据典型相关系数变换得到
+res$scores$corr.X.xscores
+res$scores$corr.Y.xscores
+res$scores$corr.X.yscores
+res$scores$corr.Y.yscores
 
 ```
 
-```{r}
+\  第一张表的第一列说明，V1和高学历的人的相关系数为-0.9933，而和另外两个因素不相关，因此V1只与高学历的观点有关。而从第四张表中可以得到W1与艺术家(arti)与主管(man)相关。加之V1与W1是最相关的一对典型变量，因此可以得出结论：高学历的与艺术家、主管的观点一致。
 
-```
+#5.列联表行变量和列变量的关系：对应分析correspondence analysis
 
 ```{r}
 

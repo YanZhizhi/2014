@@ -1,0 +1,114 @@
+---
+title: "Reading and writing data"
+author: "Yan Zhizhi"
+date: "Sunday, February 01, 2015"
+output: html_document
+---
+
+\  ***Data Manipulation with R***
+
+#Chapter 2 Reading and Writing Data
+
+###2.1 Reading Vectors and Matrics
+
+**Mainly about scan()**
+
+```{r, eval=FALSE}
+#在console中逐行执行代码
+names = scan(what = "")#这里指示了将要输入的数据的类型。""代表character型
+joe fred bob john
+sam sue robin
+#执行到这里 再按个空格
+names
+#然后会得到如下结果
+```
+
+```
+[1] "joe"   "fred"  "bob"   "john"  "sam"   "sue"   "robin"   
+```
+
+```{r, eval=FALSE}
+#另一个例子
+names <- scan(what = list(a=0, b="", c=0))# 0代表numeric型
+1 dog 3
+2 cat 5
+3 duck 7
+
+names
+#结果如下
+```
+
+```
+ $a   
+ [1] 1 2 3   
+ $b   
+ [1] "dog"  "cat"  "duck"   
+ $c   
+ [1] 3 5 7   
+```
+
+```{r,eval=FALSE}
+myhat <- matrix( scan(), ncol = 3, byrow = TRUE)
+19 17 12
+15 18 9
+9 10 14
+7 12 15
+
+myhat
+#结果如下
+```
+
+```
+     [,1] [,2] [,3]
+[1,]   19   17   12
+[2,]   15   18    9
+[3,]    9   10   14
+[4,]    7   12   15
+```
+
+```{r, eval=FALSE}
+#只读入第1,3,10块的数据
+values <- scan(filename, 
+               what = c(f1 = 0,NULL,f3 = 0,rep(list(NULL), 6), f10 = 0))
+result <- cbind(values$f1, values$f3, values$f10)
+```
+
+\  **用上面这种方法，可以读入指定位置的数据，并通过cbind函数来得到最终的矩阵**
+
+###2.2 Data Frames: read.table
+
+\  这里介绍了read.table()里包含的诸多参数
+
+```{r}
+args(read.table)
+```
+
+###2.3 Comma- and Tab-Delimited Input Files
+
+\  specialized read.table -- **read.csv(), read.csv2(), read.delim()**
+
+###2.4 Fixed-Width Input Files
+
+\  **read.fwf()**
+
+```{r}
+city = read.fwf("city.txt", widths = c(18,9), as.is =TRUE)
+head(city)
+#去除逗号，将V2列转为numeric型
+city$V2 <- as.numeric(gsub(",","",city$V2))
+head(city)
+```
+
+###2.5 Extracting Data from R Objects
+
+\  R允许用户自己定义数据类 method dispatch方法分派、inheritance继承   
+\  function.class
+
+```{r}
+#示例
+slm <- lm(stack.loss ~ Air.Flow + Water.Temp, data = stackloss)
+class(slm)
+#从下述函数中可以看到，对于某个特定的类有哪些方法可以使用
+apropos('.*\\.lm$')
+```
+

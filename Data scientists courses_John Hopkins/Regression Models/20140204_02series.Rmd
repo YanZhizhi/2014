@@ -1,0 +1,67 @@
+---
+title: "Regression Models_02series"
+author: "Yan Zhizhi"
+date: "Wednesday, February 04, 2015"
+output: html_document
+---
+
+John Hopkins - Regression Models - 02series
+
+#02-01 Multivariable regression
+
+\  下面这一段是验证多元统计的系数算法。。。其实应该不需要掌握。。。 
+```{r}
+n <- 100
+x <- rnorm(n)
+x2 <- rnorm(n)
+x3 <- rnorm(n)
+y <- x + x2 + x3 + rnorm(n,sd = .1)
+e <- function(a,b)   a - sum( a * b ) / sum( b ^ 2 ) * b
+ey <- e(e(y,x2),e(x3,x2))
+ex <- e(e(x,x2),e(x3,x2))
+sum(ey * ex) / sum(ex ^ 2)
+```
+
+```{r}
+fit <- lm(y ~ x + x2 + x3 - 1)
+coef(fit)
+summary(fit)
+```
+
+####Showing that order doesn't matter
+```{r}
+ey <- e(e(y, x3), e(x2, x3))
+ex <- e(e(x, x3), e(x2, x3))
+sum(ey * ex) / sum(ex ^ 2)
+
+ey <- resid(lm(y ~ x2 + x3 - 1))
+ex <- resid(lm(x ~ x2 + x3 - 1))
+sum(ey * ex) / sum(ex ^ 2)
+```
+
+#02-02 Multivariable regression examples
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+

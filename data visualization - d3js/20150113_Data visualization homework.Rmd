@@ -1,0 +1,254 @@
+---
+title: "20150113_Data visualization homework"
+author: "Yan Zhizhi"
+date: "Tuesday, January 13, 2015"
+output: html_document
+---
+ 
+```{r,message=FALSE}
+library(dplyr)
+library(RJSONIO)
+setwd("e://R_data//data_visualization//Homework")
+load("serviceData_GQHonda.RData")
+#数据名：dealerInfo; hondaDF
+str(dealerInfo)
+str(hondaDF)
+summary(hondaDF)
+#hondaDF$Freq <- 1
+
+#将省的命名处理成和echarts中一致的命名方式
+#hondaDF$CustomerProvince <- sapply(hondaDF$CustomerProvince, FUN = function(s){
+# s <- sub("省","",s)
+# s <- sub("市","",s)
+# s <- sub("壮族自治区","",s)
+# s <- sub("回族自治区","",s)
+# s <- sub("维吾尔自治区","",s)
+# s <- sub("自治区","",s)
+# return(s)
+#})
+
+#对各市的命名进行处理
+#hondaDF$CustomerCity <- sapply(hondaDF$CustomerCity, FUN = function(s#){
+#  len <- nchar(s)
+#  if(substr(s,len,len)!="市" & 
+#       (substr(s,len,len)!="州" | len <= 3)){
+#    s <- paste(s,"市",sep = "")
+#  }
+#  return(s)
+#}
+
+#hondaDF[hondaDF$CustomerCity == "大理市",4] <- "大理白族自治州"
+#hondaDF[hondaDF$CustomerCity == "文山市",4] <- "文山壮族苗族自治州"
+#hondaDF[hondaDF$CustomerCity == "阿克苏市",4] <- "阿克苏地区"
+#hondaDF[hondaDF$CustomerCity == "阿勒泰地区市",4] <- "阿勒泰地区"
+#hondaDF[hondaDF$CustomerCity == "哈密地区市",4] <- "哈密地区"
+#hondaDF[hondaDF$CustomerCity == "喀什市",4] <- "喀什地区"
+#hondaDF[hondaDF$CustomerCity == "塔城地区市",4] <- "塔城地区"
+#hondaDF[hondaDF$CustomerCity == "临夏市",4] <- "临夏回族自治州"
+#hondaDF[hondaDF$CustomerCity == "临夏州市",4] <- "临夏回族自治州"
+#hondaDF[hondaDF$CustomerCity == "阿拉善盟市",4] <- "阿拉善盟"
+#hondaDF[hondaDF$CustomerCity == "锡林郭勒盟市",4] <- "锡林郭勒盟"
+#hondaDF[hondaDF$CustomerCity == "市辖区市" &hondaDF$CustomerProvince == "北京" ,3] <- "北京市"
+#hondaDF[hondaDF$CustomerCity == "市辖区市" &hondaDF$CustomerProvince == "天津" ,3] <- "天津市"
+#hondaDF[hondaDF$CustomerCity == "市辖区市" &hondaDF$CustomerProvince == "上海" ,3] <- "上海市"
+#hondaDF[hondaDF$CustomerCity == "市辖区市" &hondaDF$CustomerProvince == "重庆" ,3] <- "重庆市"
+#hondaDF[hondaDF$CustomerCity == "柳州地区市",4] <- "柳州市"
+#hondaDF[hondaDF$CustomerCity == "河池地区市",4] <- "河池市"
+#hondaDF[hondaDF$CustomerCity == "周口店地区市",4] <- "周口市"
+#hondaDF[hondaDF$CustomerCity == "湖北省直辖行政单位市",4] <- "武汉市"
+
+#save(hondaDF, file = "HondaDF.RData")
+load("HondaDF.RData")
+```
+
+```{r,eval=FALSE}
+#读出部分数据，便于观察数据结构
+write.csv(dealerInfo,"dealerInfo.csv")
+write.csv(hondaDF[c(1:1000),],"hondaDF.csv") 
+```
+
+#了解用户的区域分布
+```{r,message=FALSE,warning=FALSE}
+uni_VIN <- distinct(select(hondaDF, VIN, Freq))
+sum(uni_VIN$Freq)
+
+#不同VIN的维修记录条数
+mendAmount <- hondaDF %>% group_by(VIN) %>% summarise( amount = n())
+
+nrow(distinct(hondaDF, CustomerProvince, CustomerCity)) #429
+nrow(distinct(hondaDF, CustomerProvince, CustomerCity, lat, lng)) #15016
+
+```
+
+#各个省份各有多少客户
+```{r}
+setwd(".//homework")
+#不同省维修记录条数
+Pro_ana <- hondaDF %>% 
+           group_by(CustomerProvince) %>%
+           summarise(Amount = n())
+Pro_ana <- as.data.frame(Pro_ana)
+Pro_ana[order(Pro_ana$Amount,decreasing = T),]
+
+output <- ""
+temp <- paste("{name:'",Pro_ana[,1],"',value:",Pro_ana[,2],"}",sep = "")
+for(i in 1:31){ output <- paste(output,temp[i],sep = ",") }
+output <- substr(output, 2, nchar(output))
+write(toJSON(output),"ProvinceDF.JSON")
+
+Deleted <- lapply(1: nrow(Pro_ana), FUN = function(i){
+  return (list(
+    name = Pro_ana$CustomerProvince[i], 
+    value = Pro_ana$Amount[i]))
+})
+write(toJSON(Deleted),"Deleted.JSON")
+
+Deleted1 <- lapply 
+```
+
+#各个省份-不同的商家-有多少客户
+```{r}
+names(dealerInfo) <- c("ID", "Lat", "Long", "cnName", "OpenDate",
+                       "LeaderName","Address","PostCode",
+                       "Tel", "Fax", "Mailbox")
+attach(dealerInfo)
+Pro_Dealer_ana <- hondaDF %>% 
+                  group_by(DealerName,CustomerProvince) %>%
+                  summarise(Amount = n())
+
+
+filename <- paste(ID,"_Pro",sep = "")
+filename <- paste(filename,"JSON",sep = ".")
+
+
+for(i in 1:length(ID)){
+   output <- ""
+   d <- as.data.frame(
+     subset(Pro_Dealer_ana, DealerName == as.character(ID[i])))
+   temp <- paste("{name:'",d[,2],"',value:",d[,3],"}",sep = "")
+   for(j in 1:nrow(d)){ output <- paste(output,temp[j],sep = ",") }
+   output <- substr(output, 2, nchar(output))
+   write(toJSON(output),filename[i])
+  }
+```
+
+#省市级下钻
+```{r}
+#云南省各个市的维修记录条数
+ProvCity_ana <- hondaDF %>% 
+                group_by(CustomerProvince, CustomerCity) %>%
+                summarise(Amount = n())
+cityValue <- as.data.frame(ProvCity_ana)[,-1]
+
+City <- lapply(1: nrow(cityValue), FUN = function(i){
+  return (list(
+    name = cityValue$CustomerCity[i], 
+    value = cityValue$Amount[i]))
+})
+
+write(toJSON(City),"City.JSON")
+
+```
+
+###云南省数据处理
+```{r}
+Yunnan <- as.data.frame(filter(ProvCity_ana, CustomerProvince == "云南"))
+
+Yunnan <- Yunnan[,-1]
+
+Y <- lapply(1: nrow(Yunnan), FUN = function(i){
+  return (list(
+    name = Yunnan$CustomerCity[i], 
+    value = Yunnan$Amount[i]))
+})
+```
+
+###浙江省数据处理
+```{r}
+ZJ <- as.data.frame(filter(ProvCity_ana, CustomerProvince == "浙江"))
+ZJ <- ZJ[,-1]
+
+Z <- lapply(1: nrow(ZJ), FUN = function(i){
+  return (list(
+    name = ZJ$CustomerCity[i], 
+    value = ZJ$Amount[i]))
+})
+```
+
+###广东省数据处理
+```{r}
+GD <- as.data.frame(filter(ProvCity_ana, CustomerProvince == "广东"))
+GD <- GD[,-1]
+
+
+G <- lapply(1: nrow(GD), FUN = function(i){
+  return (list(
+    name = GD$CustomerCity[i], 
+    value = GD$Amount[i]))
+})
+```
+
+```{r}
+total3 <- c(Y,Z,G)
+write(toJSON(Y),"YN.JSON")
+write(toJSON(Z),"ZJ.JSON")
+write(toJSON(G),"GD.JSON")
+write(toJSON(total3),"total3.JSON")
+```
+
+#不同Dealer修理的车辆数量
+```{r}
+d <- hondaDF %>% group_by(DealerName) %>% 
+  summarise(count = n())
+d <- as.data.frame(d)
+
+d2 <- lapply(1: nrow(d), FUN = function(i){
+  return (list(
+    DealerName = d$DealerName[i], 
+    Amount = d$count[i]))
+})
+write(toJSON(d2),"DealerMendAmount.JSON")
+```
+
+#不同车型的车（品牌只有一个honda）
+这个图如果能与不同车型的销售占比进行比较的话，就能看出哪个车型比较容易出问题
+```{r}
+style <- unique(hondaDF$stdModel)
+length(style)
+cModel <- hondaDF %>% group_by(stdModel) %>% 
+  summarise(Count = n())
+cModel <- as.data.frame(cModel)
+cModel <- cModel[order(cModel$Count,decreasing = T),]
+
+cM <- lapply(1: nrow(cModel), FUN = function(i){
+  return (list(
+    MName = cModel$stdModel[i], 
+    MCount = cModel$Count[i]))
+})
+
+write(toJSON(cM),"carModel.JSON")
+```
+
+不同维修类型随时间变化
+```{r}
+library(dplyr)
+library(lubridate)
+hondaDF$Month <- month(hondaDF$OpenDate)
+hondaDF$Year <- year(hondaDF$OpenDate)
+line <- hondaDF %>% group_by( Repair_Type,Year,Month) %>% 
+  summarise(Amount = n())
+line <- as.data.frame(line)
+line <- line[line$Year == 2012,]
+
+line_Json <- lapply(1: nrow(line), FUN = function(i){
+  return (list(
+    Month = cModel$stdModel[i], 
+    MCount = cModel$Count[i]))
+})
+
+```
+
+是否在保修期的占比   对比   
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
