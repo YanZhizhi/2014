@@ -7,6 +7,13 @@ output: html_document
 
 \  ***Data Manipulation with R***
 
+\  **mode 和 class 的区别**
+
+```
+     'mode' is a mutually exclusive classification of objects according to their basic structure. The 'atomic' modes are numeric, complex, character and logical. Recursive objects have modes such as 'list' or 'function' or a few others. An object has one and only one mode.
+　　 'class' is a property assigned to an object that determines how generic functions operate with it. It is not a mutually exclusive classification. If an object has no specific class assigned to it, such as a simple numeric vector, it's class is usually the same as its mode, by convention. 
+```
+
 #Chapter 2 Reading and Writing Data
 
 ###2.1 Reading Vectors and Matrics
@@ -92,7 +99,8 @@ args(read.table)
 \  **read.fwf()**
 
 ```{r}
-city = read.fwf("city.txt", widths = c(18,9), as.is =TRUE)
+setwd( "E:/git/2014")
+city <- read.fwf("city.txt", widths = c(18,9), as.is =TRUE)
 head(city)
 #去除逗号，将V2列转为numeric型
 city$V2 <- as.numeric(gsub(",","",city$V2))
@@ -108,7 +116,233 @@ head(city)
 #示例
 slm <- lm(stack.loss ~ Air.Flow + Water.Temp, data = stackloss)
 class(slm)
-#从下述函数中可以看到，对于某个特定的类有哪些方法可以使用
+#从下述函数中可以看到，对于某个特定的对象类有哪些方法可以使用
 apropos('.*\\.lm$')
+#从下述函数中可以看到，对于某个特定方法，有哪些类是与之匹配的
+apropos('^summary')
 ```
 
+>  apropos函数：Find Objects by(Partial) Name
+>  上述两个例子中的式子均为正则表达式： $表示以该字符结尾；^表示以该字符开头
+
+```{r}
+names(slm) #用于查阅对象中所含的元素（通常是一个列表，里面装了各个元素）
+#然后就可以查阅各个元素了
+slm$df.residual
+slm['df.residual']
+```
+
+\  S4对象系统是一种标准的R语言面向对象实现方式，S4对象有明确的类定义，参数定义，参数检查，继承关系，实例化等的面向对象系统的特征。在S4新式类中，可以通过调用在通用函数定义中的standardGeneric()函数来识别通用函数   
+\  下面这个例子模拟gamma分布的数据，用极大似然法估计分布的函数
+
+```{r}
+library(methods)
+library(stats4)
+set.seed(19)
+#rgamma generates random deviates
+gamdata <- rgamma(100,shape = 1.5, rate = 5)
+#dgamma gives the density
+loglik <- function(shape=1.5,rate=5)-sum(dgamma(gamdata,shape=shape,rate=rate,log=TRUE))
+mgam <- mle(loglik) #mle()用于做最大似然估计
+mgam
+class(mgam)
+isS4(mgam)
+```
+
+\  对于S4类用showMethods()函数（来自methods包）可以找到可用的方法
+
+```{r}
+showMethods(class = 'mle')
+#用下述函数查看S4对象的可用插槽，这些插槽（slot）可通过@符号来访问,也可通过slot函数来访问
+getClass(class(mgam))
+mgam@coef
+slot(mgam, "coef")
+```
+
+```
+2.1 参数定义
+setClass(Class, representation, prototype, contains=character(),
+          validity, acc
+          ess, where, version, sealed, package,
+          S3methods = FALSE, slots)
+
+Class: 定义类名
+slots: 定义属性和属性类型
+prototype: 定义属性的默认值
+contains=character(): 定义父类，继承关系
+validity: 定义属性的类型检查
+where: 定义存储空间
+sealed: 如果设置TRUE，则同名类不能被再次定义
+package: 定义所属的包
+
+2.2 创建一个S4对象实例
+
+# 定义一个S4对象
+ setClass("Person",slots=list(name="character",age="numeric"))
+
+# 实例化一个Person对象
+father<-new("Person",name="F",age=44)
+
+# 查看father对象，有两个属性name和age
+father
+
+# 查看father对象类型，为Person
+class(father)
+attr(,"package")
+
+# 查看father对象为S4的对象
+> otype(father)
+
+```
+
+###2.6 Connections
+
+\  **Functions to Manipulate Connections**
+
+- file: Files on the local file system
+- pipe: Output from a command
+- textConnection: Treats text as a file 将文本视为一个文件
+- gzfile: local gzipped file 压缩文件.gz
+- unz: local zip archive(with single file; read-only)
+- bzfile: local bzipped file 压缩文件.bz
+- url: remote file read via http
+- socketConnection: socket for client/server programs C/S程序的插槽
+
+\  **e.g. 从URL中读取内容**
+
+```{r}
+#"r"表示以text mode打开
+rpage <- url("http://www.r-project.org/main.shtml",open = "r")
+#如果读取中文页面，需要列出参数  encoding = "utf8"
+while(1){
+  #每次读取1行，缺失或“-1”表示读取所有行，逐行读取
+  l = readLines(rpage,1)
+  l
+  if(length(l) == 0) break
+  #grep(),grepl(),regexpr(),gregexpr()都是查找函
+  #其实就是当某一行出现了"has been"字眼时，执行括号内代码
+  if(regexpr('has been',l) > -1){
+     #sub,gsub是替换函数,前者是替换第一个，后者是替换全部
+     ver = sub('</.*','',l) #用空字符串替换掉“</”及之后的内容
+     print(gsub('.*>','',ver))#用空字符串替换掉“>”及之前的内容，然后输出
+     break
+  }
+}
+close(rpage)
+```
+
+###2.7 Reading Large Data Files
+
+\ readLines()与scan()不用读入整份文件，因而可以用于对大型文件分块处理。这里是提前分配连续内存的代码。有需要的时候再仔细看吧。。。
+
+```{r,eval=FALSE}
+readbig = function(file,samplesz,chunksz,nrec=0){
+  if(nrec <= 0)nrec = length(count.fields(file))
+  f = file(file,’r’)
+  on.exit(close(f))
+  use = sort(sample(nrec,samplesz))
+  now = readLines(f,1)
+  k = length(strsplit(now,’ +’)[[1]])
+  seek(f,0)
+  
+  result = matrix(0,samplesz,k)
+
+  read = 0
+  left = nrec
+  got = 1
+  while(left > 0){
+    now = matrix(scan(f,n=chunksz*k),ncol=k,byrow=TRUE)
+    begin = read + 1
+    end = read + chunksz
+    want = (begin:end)[begin:end %in% use] - read
+    if(length(want) > 0){
+      nowdat = now[want,]
+      newgot = got + length(want) - 1
+      result[got:newgot,] = nowdat
+      got = newgot + 1
+    }
+    read = read + chunksz
+    left = left - chunksz
+  }
+  return(result)
+}
+
+#在windows系统下，可以通过下述代码来计算文件的行数
+nrec <- as.numeric(shell('type "comma.txt"|find/c ","', intern = TRUE))
+#在unix系统下
+nrec <- as.numeric(system('cat comma.txt | wc -1', intern = TRUE))
+#计算列数的方法为：用readLines读取一行，再使用适当的分隔符，
+#调用strsplit函数来计算，再用seek()命令重新定位文件，准备实际读取数据
+```
+
+###2.8 Generating Data
+
+####2.8.1 Sequences
+
+```{r}
+s1 <- 1:10 ; s1
+s2 <- seq(1,10,by = 1); s2
+s3 <- seq(1, by = 1,length = 10); s3
+s4 <- gl(5,2,12); s4
+```
+
+\  序列还可用于生成因子，与一个实验设计的水平相对应。gl()函数可用于生成各级水平。   
+\  下述案例模拟一个实验的各个水平，实验设计为3个组和5个小组，每个小组有两个observations，合计30个观测值。
+
+```{r}
+#第一个gl函数的参数代表3个水平，每个水平10个样本，输出向量长度为30
+thelevels = data.frame(group=gl(3,10,length=30), 
+                       subgroup=gl(5,2,length=30),
+                       obs=gl(2,1,length=30))
+head(thelevels)
+```
+
+\  可以使用expand.grid()创建由多个序列的唯一组合形成的数据框，返回的数据框是输入值的一个**唯一的组合**
+
+```{r}
+oe <- expand.grid(odd = seq(1,5,by = 2),
+                  even = seq(2,5,by = 2)) 
+oe
+```
+
+\  下述例子利用expand.grid函数计算$x^2 + y^2$ 在指定x与y的范围时的所有结果
+
+```{r}
+input <- expand.grid(x = 0:10, y =0:10)
+res <- apply(input,1,function(row)row[1]^2 + row[2]^2)
+head(cbind(input,res))
+```
+
+####2.8.2 Random Numbers
+
+\  R中随机数发生函数的状态存储在Random.seed对象中，要创建一个可再生的序列，可以在set.seed()中输入一个整数以确保只要输入相同值，产生的随机数序列也将一致。（随机数序列是确定的迭代序列，设定的初始seed决定了之后的所有随机数）
+
+```{r,echo=-1}
+t <- data.frame(Function1 = c("rbeta()","rbinom()","rcauchy()",
+                             "rchisq()","rexp()"),
+                Distribution1 = c("Beta","Binomial","Cauchy",
+                                 "Chi-square","Exponential"),
+                Function2 = c("rf()","rgamma()","rgeom()",
+                             "rhyper","rlnorm"),
+                Distribution2 = c("F","Gamma","Geometric",
+                                 "Hypergeomatric","Log Normal"),
+                Function3 = c("rlogis()","rmultino()","rnbinom()",
+                             "rnorm()","rpois()"),
+                Distribution3 = c("Logistic", "Multinomial", "Negative Binomial",
+                                 "Normal", "Poisson"),
+                Function4 = c("rsignrank()","rt()","runif()",
+                             "rweibull()","rwilcox()"),
+                Distribution4 = c("Signed Rank","Student's t","Uniform",
+                                 "Weibull", "Wilcoxon Rank Sum"))
+knitr::kable(t)                       
+```
+
+###2.9 Permutation 排列
+
+####2.9.1 Random Permutations 随机排列（抽样）
+
+```{r}
+
+```
+
+####2.9.2 枚举所有排列
