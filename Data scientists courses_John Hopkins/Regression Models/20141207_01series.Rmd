@@ -57,3 +57,65 @@ g = g + xlab("Father's height, normalized")
 g = g + ylab("Son's height, normalized")
 g
 ```
+
+###01-05 statistical linear regression model
+
+#### Plot of the data
+```{r, message = FALSE, fig.height=5,fig.width=5}
+library(UsingR)
+data(diamond)
+library(ggplot2)
+g = ggplot(diamond, aes(x = carat, y = price))
+g = g + xlab("Mass (carats)")
+g = g + ylab("Price (SIN $)")
+g = g + geom_point(size = 7, colour = "black", alpha=0.5)
+g = g + geom_point(size = 5, colour = "blue", alpha=0.2)
+g = g + geom_smooth(method = "lm", colour = "black")
+g
+```
+
+#### Fitting the linear regression model
+```{r}
+fit <- lm(price ~ carat, data = diamond)
+coef(fit)
+```
+
+#### Getting a more interpretable intercept
+```{r, echo = TRUE}
+fit2 <- lm(price ~ I(carat - mean(carat)), data = diamond)
+coef(fit2)
+```
+
+#### Changing scale
+```{r, echo = TRUE}
+fit3 <- lm(price ~ I(carat * 10), data = diamond)
+coef(fit3)
+```
+
+###01-06 Residuals and residual variation
+
+```{r}
+library(UsingR)
+data(diamond)
+y <- diamond$price; x <- diamond$carat; n <- length(y)
+fit <- lm(y ~ x)
+e <- resid(fit)
+yhat <- predict(fit)
+
+#观察残差随X的变化   Residuals versus X
+#似乎plot(fit)这个指令画出的四幅图里的第一幅应该是这个吧。。。
+plot(x, e,  
+     xlab = "Mass (carats)", 
+     ylab = "Residuals (SIN $)", 
+     bg = "lightblue", 
+     col = "black", cex = 2, pch = 21,frame = FALSE)
+abline(h = 0, lwd = 2)
+for (i in 1 : n) 
+  lines(c(x[i], x[i]), c(e[i], 0), col = "red" , lwd = 2)
+```
+
+####关于回归结果相同，但实际分布天差地别的一个案例
+```{r}
+data(anscombe)
+example(anscombe)
+```
