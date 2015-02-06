@@ -284,6 +284,8 @@ s1 <- 1:10 ; s1
 s2 <- seq(1,10,by = 1); s2
 s3 <- seq(1, by = 1,length = 10); s3
 s4 <- gl(5,2,12); s4
+
+s5 <- rep(5,times = 3);s5
 ```
 
 \  序列还可用于生成因子，与一个实验设计的水平相对应。gl()函数可用于生成各级水平。   
@@ -342,7 +344,158 @@ knitr::kable(t)
 ####2.9.1 Random Permutations 随机排列（抽样）
 
 ```{r}
-
+#有放回抽样，sample(x,size,replace = F, prob = NULL)
+t(table(sample(c(1:10),10,replace = T)))
+t(table(sample(c(1:10),10,replace = F)))
 ```
 
-####2.9.2 枚举所有排列
+####2.9.2 Enumerating All Permutations 枚举所有排列
+
+```{r,message=FALSE,warning=FALSE}
+library(combinat)
+#combn函数返回list
+combn(4,2)#相当于C4 2，每一列是一种组合
+combn(4,2)
+#阶乘函数
+factorial(5)
+```
+
+###2.10 Working with sequences
+
+- table()
+- unique()
+- duplicated()返回逻辑向量表示每个值是否是第一次出现
+- !duplicated()表示是否是唯一值
+- rle()函数（run-length encoding）用于识别序列中连续的相同值，返回的values表示出现的值，lengths表示值连续出现的次数
+
+```{r}
+seq1 = c(1,3,5,2,4,2,2,2,7,6)
+rle.seq1 = rle(seq1); rle.seq1
+#该序列中是否存在连续出现三次及以上的2
+any(rle.seq1$values == 2 & rle.seq1$lengths >= 3)
+#index给的是rle结果中values的对应位置
+index <- which(rle.seq1$values == 2 & rle.seq1$lengths >= 3); index
+ends <- cumsum(rle.seq1$lengths)[index]; ends
+
+newindex = ifelse(index > 1,index - 1,0)
+starts = cumsum(rle.seq1$lengths)[newindex] + 1
+# 在Rconsole中输入 ?"%in%" 得到的结果：value matching
+if(0 %in% newindex) starts = c(1,starts)
+#starts给出的是原序列中，对应的重复序列的初始位置
+starts
+
+seq2 = c(7,5,3,2,1,2,2,3,5,8)
+rle.seq2 = rle(seq2);rle.seq2
+any(rle.seq2$values == 2 & rle.seq2$lengths >= 3)
+
+seq3 = c(2,2,2,2,3,5,2,7,8,2,2,2,4,5,9,2,2,2)
+rle.seq3 = rle(seq3)
+cumsum.seq3 = cumsum(rle.seq3$lengths)
+myruns = which(rle.seq3$values == 2 & rle.seq3$lengths >= 3)
+ends = cumsum.seq3[myruns]
+newindex = ifelse(myruns > 1,myruns - 1,0)
+starts = cumsum.seq3[newindex] + 1
+if(0 %in% newindex)starts = c(1,starts)
+starts
+ends
+```
+
+\  rle函数还可用于在一个随机序列中找到连续大于零的数串；此时传入rle中的参数是逻辑值。    
+
+```{r}
+set.seed(19)
+randvals <- rnorm(100)
+rle.randvals <- rle(randvals > 0)
+myruns = which(rle.randvals$values == TRUE & rle.randvals$lengths >= 5)
+any(myruns)
+
+cumsum.randvals = cumsum(rle.randvals$lengths)
+ends = cumsum.randvals[myruns]
+newindex = ifelse(myruns > 1,myruns - 1,0)
+starts = cumsum.randvals[newindex] + 1
+if(0 %in% newindex)starts = c(1,starts)
+starts
+ends
+randvals[starts:ends]
+```
+
+###2.11 Spreadsheets 电子表格
+
+\  读取xls类型文件中的sheet（不能读取xlsx格式）
+
+#####2.11.1基于windows的RODBC包
+```{r, eval=FALSE}
+library(RODBC)
+sheet <- "./test.xls"
+#下面这个函数只在32位windows下使用o(╯□╰)o
+con <- odbcConnectExcel(sheet)
+tbls <- sqlTables(con)
+tbls$TABLE_NAME
+
+#If the table name contains special characters, like spaces, brackets, or dollar signs, then it needs to be surrounded by backquotes (‘).
+
+qry = paste("SELECT * FROM",tbls$TABLE_NAME[1],sep=’ ’)
+result = sqlQuery(con,qry)
+```
+
+#####2.11.2 gdata包
+
+\  gdata包的read.xls()函数是为脚本语言perl开发的模块，需要安装perl（windows下需安装，linux、OS均无需安装）。read.xls()将xls文件转换为csv文件后导入，所以可以使用read.csv()函数的所有参数。
+
+###2.12 保存和加载R数据对象
+
+```{r,eval=FALSE}
+#在指定路径后执行如下操作可将对应的数据对象存成R数据对象
+save(object1,object2,object3,file = "fileName")
+#使用load指令可以加载R数据对象
+load(fileName)
+```
+
+###2.13 处理二进制文件
+
+#####\ 读入
+
+```{r, eval=FALSE}
+bincon = file('data.bin','rb')
+result = matrix(0,20,6)
+for(i in 1:20){
+  theint = readBin(bincon,integer(),1)
+  thedoubles = readBin(bincon,double(),5)
+  result[i,] = c(theint,thedoubles)
+}
+close(bincon)
+```
+
+#####\ 写入
+
+\  写入二进制文件前，列表的因子必须转化为字符型。
+
+```{r,eval=FALSE}
+mystates = data.frame(name=row.names(state.x77),state.x77,
+                      row.names=NULL,stringsAsFactors=FALSE)
+#为了让所有mystate$name元素的长度相同
+#用sprintf()函数可以将可变长度的字符值转换为固定长度的字符值
+maxl = max(nchar(mystates$name))
+mystates$newname = sprintf(paste(’%-’,maxl,’s’,sep=’’),
+                           mystates$name)
+
+f = file('states.bin','wb')
+for(i in 1:nrow(mystates)){
+  writeBin(mystates$newname[i],f)
+  writeBin(unlist(mystates[i,2:9]),f)
+}
+```
+
+###2.14 将R对象写入ASCII格式的文件
+
+```{r,eval = FALSE}
+write()
+write.table()
+```
+
+###2.15 从其他程序中读取数据
+
+\  有兴趣的时候学学。。
+\  data.restore, read.S, read.dbf, read.dta(读取用stata存储的对象), write.dta, 
+read.epinfo. read.spss, read.mtp(读取Minitab便携式工作表文件), read.octave(GNU octave生成的对象),
+read.xport(读取sas导出的对象), read.systat
