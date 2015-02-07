@@ -1,0 +1,216 @@
+---
+title: "Data manipulation with R: Chapter4 Dates"
+author: "Yan Zhizhi"
+date: "Friday, February 06, 2015"
+output: html_document
+---
+
+\  **Data Manipulation with R**
+
+- as.date()函数
+- chron包，处理日期和时间，不控制时区
+- POSIXct和POSIXlt可控制时间、日期和时区
+- Sys.Date()获取当前日期
+- **时间的输入输出（各种格式的转换）**
+- **显示时间的年、月、日、时、分、秒**
+
+###4.1 as.Date
+
+```{r}
+Sys.Date()
+#as.Date的默认日期格式
+birth <- as.Date('1992-12-23'); birth
+#在as.Date()函数中使用自行设定的格式
+as.Date('12/23/1992',format = '%m/%d/%Y')
+```
+
+\  **日期格式代码：**
+
+- %d 日期（数字）
+- %m 月份（数字）
+- %b 月份（缩写）
+- %B 月份（全称）
+- %y 年（两位数）
+- %Y 年（四位数）
+
+```{r}
+#月份的简写，不需要考虑大小写
+as.Date('dec/23/92',format = '%b/%d/%y') #英文系统
+as.Date('Dec/23/92',format = '%b/%d/%y') #英文系统
+as.Date('DEC/23/92',format = '%b/%d/%y') #英文系统 
+
+as.Date('December/23/1992', format = '%B/%d/%Y')
+as.Date('23DEC92',format='%d%b%y')
+```
+
+\  注：如果系统时间显示是中文格式的话，英文简写就不能被成功识别
+\  再注：R内部日期对象是自**1970年1月1日**之后，否则会出现负数
+\  获得某Date类型的日、星期、月份、季度、年份等，可使用下列函数
+
+```{r}
+weekdays(birth)
+months(birth)
+quarters(birth)
+
+library(chron)
+days(birth)
+detach(package:chron)
+
+library(lubridate)
+day(birth)
+month(birth)
+year(birth)
+quarter(birth)
+week(birth)
+detach(package:lubridate)
+```
+
+\  事实上，Date型对象的存储是以数字（天数）存储的。要把内部形式转化为Date类型，需要把"Date"类型的属性赋予它。
+
+```{r}
+birth + 1
+numDate <- as.numeric(birth);numDate
+class(numDate)
+class(numDate) <- "Date"
+numDate
+```
+
+\    从R的网站上爬取不同R版本的Release时间。  
+
+```{r}
+f = url('http://cran.cnr.berkeley.edu/src/base/R-2','r')
+rdates = data.frame()
+while(1){
+  l = readLines(f,1)
+  if(length(l) == 0)break
+  if(regexpr('href="R-',l) > -1){
+    parts = strsplit(l,' ')[[1]]
+    rver = sub('^.*>(R-.*).tar.gz.*','\\1',l)
+    date = parts[18]
+    rdates = rbind(rdates,data.frame(ver=rver,Date=date))
+  }
+}
+close(f)
+rdates <- rdates[1:20,]
+rdates$Date = as.Date(rdates$Date,'%d-%B-%Y')
+rdates
+```
+
+
+###4.2 The chron Package
+
+\  感觉lubridate包可能比chron包更好一点。lubridate包的帮助文件可以通过vignette("lubridate")来获得。  
+\  在使用chron包时，如果日期和时间存储在一起，应用strsplit函数将其分开  
+
+
+```{r,message=FALSE}
+library(chron)
+dtimes = c("2002-06-09 12:45:40","2003-01-29 09:30:40",
+           "2002-09-04 16:45:40","2002-11-13 20:00:40",
+           "2002-07-07 17:30:40")
+dtparts = t(as.data.frame(strsplit(dtimes,' ')))
+row.names(dtparts) = NULL; dtparts
+thetimes = chron(dates=dtparts[,1],times=dtparts[,2],
+                 format=c('y-m-d','h:m:s'))
+#mon代表缩写的Month，month代表全写的Month
+thetimes
+detach(package:chron)
+```
+
+\  时间在R内部存储为自1970-1-1起的小数值（以天为单位，可以用as.numeric函数获得）。如果时间存储为自午夜起的秒数，可由POSIX处理
+
+###4.3 POSIX Classes
+
+\  POSIX代表便携式操作系统界面，主要用于UNIX系统。POSIX存储的日期格式是“日期/时间”，允许修改时区。  
+\  POSIX有两个日期/时间类：**POSIXct & POSIXlt** ，前者将日期/时间值作为自1970-1-1以来的**秒数**存储，后者则是一个具有秒，分，小时，日，月，年等元素的列表。一般选择POSIXct类。  
+\  POSIX日期的默认输入格式包括：1915/6/16; 2005-06-12 12:25; 1900/2/17 12:20:05   
+
+```{r}
+time <- as.POSIXlt("1992/12/23 23:55:00")
+dts = c("2005-10-21 18:47:22","2005-12-24 16:39:58",
+        "2005-10-28 07:30:05 PDT")
+ct <- as.POSIXct(dts) ; names(ct)
+lt <- as.POSIXlt(dts) ; names(lt)
+nlt <- as.numeric(ct)
+rbind(as.numeric(ct),as.numeric(lt))
+
+#使用structure函数，只返回指定类型的对象，但nlt本身的属性并未被改变
+structure(nlt, class = c("POSIXt","POSIXct"))
+class(nlt)
+```
+
+\  strptime()与strftime()分别用于输入日期和将日期格式化并输出。其对应的编码格式见下表。  
+
+```{r,echo=FALSE}
+setwd("E:/git/2014/data processing")
+temp <- read.table("format_codes_for_strftime_and_strptime.txt",
+                   sep = ",",header = TRUE)
+knitr::kable(temp)
+```
+
+```{r}
+#strptime函数的参数tz用于设置时区
+mydate = strptime('16/Oct/2005:07:51:00',
+                  format = '%d/%b/%Y:%H:%M:%S')
+mydate
+
+mydates = c('20060515 112504.5','20060518 101000.3',
+            '20060520 20035.1')
+dtparts = t(as.data.frame(strsplit(mydates,' '))) ; dtparts
+row.names(dtparts) <- NULL
+dtimes = strptime(dtparts[,1],format='%Y%m%d') + as.numeric(dtparts[,2])
+dtimes
+```
+
+\    将时间的各个构建传给函数ISOdate()可以创建POSIX日期：
+
+- CST是Chinese Standard Time的缩写，即中国标准时间
+- GMT是Greenwich Mean Time的缩写，即格林威治标准时间  
+- UTC：Universal Time Coordinate，与GMT相同，都与英国伦敦本地时相同  
+
+```{r}
+birthDate <- ISOdate(1992,12,23,23,55,05);birthDate
+class(birthDate)
+#usetz参数表示是否显示时区
+format(birthDate,'%A, %B %d, %Y %H:%M:%S',usetz = T)
+mydate <- as.POSIXlt(birthDate)
+```
+
+###4.4 Working with Dates
+
+```{r}
+names(rdates) = c("Release","Date")
+head(rdates)
+
+mean(rdates$Date)
+range(rdates$Date)
+rdates$Date[11] - rdates$Date[1]
+```
+
+###4.5 Time Intervals
+
+```{r}
+b1 = as.Date(ISOdate(1992,12,23))
+b2 = Sys.Date()
+b2 - b1
+#单位可以被设置为：auto, secs, mins, hours, days, weeks
+difftime(b2,b1,units = "weeks")
+#要将日转化为年，可以把天数 ÷ 365.25,然后修改对象的units属性
+ydiff <- (b2 - b1)/365.25
+attr(ydiff, "units") <- "years"
+ydiff
+```
+
+###4.6 Time Sequences
+
+```{r}
+#除chron类型外都可以用下述函数生成时间序列
+seq(as.Date("1999-9-1"), by = "days", length = 7)
+seq(as.Date('2000-6-1'),to=as.Date('2000-8-1'),by='2 weeks')
+#cut函数接受日，周，年的单位用于创建序列
+cut(seq(as.Date("1992-12-1"), to = as.Date("1992-12-24"),
+        by = "2 days"),4)
+
+table(format(rdates$Date,'%A'))
+table(factor(format(rdates$Date,'%Y')))
+```
