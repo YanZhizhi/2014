@@ -1,0 +1,187 @@
+---
+title: 'Data manipulation with R: Chapter5 Factors'
+author: "Yan Zhizhi"
+date: "Saturday, February 07, 2015"
+output: html_document
+---
+
+\  **Data Manipulation with R**
+
+#Factors
+
+- 因子是R中只能取有限个不同值的分类变量
+- 将数据保存为因子型是为了确保模型函数能正确的处理这类数据 
+
+###5.1 Using Factors
+
+```{r}
+options(width = 120)
+
+#factor函数用于创建因子
+a <- factor(c("level1","level2","level3")); a 
+b <- factor(c(seq(1,3,by = 1),seq(2,5,by = 1),seq(3,5,by=1))); b
+#levels函数对原有的因子进行重新命名，对应的向量的因子水平的名称也随之改变
+levels(b) <- c("a","b","c","d","e");b
+
+#直接输入包含月份的因子，发现其因子序与输入顺序一致
+mons = c("March","April","January","November","January",
+         "September","October","September","November","August",
+         "January","November","November","February","May","August",
+         "July","December","August","August","September","November",
+         "February","April")
+class(mons)
+mons = factor(mons);class(mons)
+levels(mons)
+table(mons)
+
+#因子的排序可以指定
+mons = factor(mons,levels=c("January","February","March",
+                            "April","May","June","July","August","September",
+                            "October","November","December"),ordered=TRUE)
+levels(mons)
+table(mons)
+#在因子序列中，支持大小比较
+mons[1] < mons[2]
+```
+
+\  这里有个例子。。。spray表示杀虫剂的伎俩，count表示杀死的昆虫数量   
+
+```{r}
+class(InsectSprays$spray)
+levels(InsectSprays$spray)
+#reorder函数用于对因子水平排序，它为新序列生成一个新的属性scores用于排序。
+#reorder函数的三个参数：因子，值向量（重新排序的基础），每个因子水平上的值的函数
+InsectSprays$spray = with(InsectSprays,
+                          reorder(spray,count,mean))
+levels(InsectSprays$spray)
+attr(InsectSprays$spray, "scores")
+```
+
+\    需要注意的是，对系统数据集的更改不改变原始数据，上面的操作只是改变了因子的排序。通过relevel函数可以将某个因子水平设为第一水平。  
+
+```{r}
+levels(InsectSprays$spray)
+InsectSprays$spray <- relevel(InsectSprays$spray, "A")
+levels(InsectSprays$spray)
+```
+
+###5.2 Numeric Factors
+
+\    在设置ordered参数值为true时，系统默认因子序为由小到大排列. 此时因子原有的数值属性被保留 
+
+```{r}
+fert <- c(50,20,20,10,10,20,10,50,20)
+fert0 <- factor(fert); fert0
+fert1 <- factor(fert, ordered =T);fert1
+fert2 <- factor(fert,levels=c(50,20,10),ordered=TRUE);fert2
+```
+
+\    在对原始向量进行因子化后，计算fert的原始数据需要levels()或character()函数来转化：  
+
+```{r}
+mean(fert1)
+levels(fert1)[fert1] -> seq
+mean(as.numeric(seq))
+mean(as.numeric(as.character(fert1)))
+```
+
+###5.3 Manipulating Factors
+
+```{r}
+#对26个字母有放回抽样100次
+lets <- sample(letters,size=100,replace=TRUE)
+table(lets)
+lets <- factor(lets)
+lets[1:5]
+table(lets[1:5])
+#make argument "drop" equal to true
+table(lets[1:5,drop=TRUE])
+#create a new factor
+table(factor(lets[1:5]))
+```
+
+\    C语言将因子视为整数，因此在合并因子时需要通过levels函数将因子还原为数值或者字符型，合并后再转为因子序列。这里有个例子。。。介绍了两个因子向量是怎么被结合到一起去的。。。感受一下：   
+
+```{r}
+fact1 = factor(sample(letters,size=10,replace=TRUE)); fact1
+fact2 = factor(sample(letters,size=10,replace=TRUE)); fact2
+
+#直接对两个因子向量合并的时候。。。尼玛得到了integer型的向量o(╯□╰)o
+f <- c(fact1,fact2);f
+c(class(fact1), class(fact2), class(f))
+f <- factor(c(fact1, fact2));f
+
+fact12 = factor(c(levels(fact1)[fact1],
+                  levels(fact2)[fact2]))
+fact12
+
+```
+
+###5.4 Creating Factors from Continuous Variables
+
+\    cut函数可以将数值变量转化为因子（貌似在分箱里用到过。。），参数breaks表示如何对数值区间进行转换。breaks = n 意味着将变量值域划分为等长的区间生成因子；若breaks是数值向量，则向量中的相邻两点用于确定区间。  
+
+```{r}
+women$weight
+wfact <- cut(women$weight, breaks = 3)
+table(wfact)
+
+#pretty()函数用于选择整数分界点，但是未必返回所需的因子水平数
+wfact <- cut(women$weight, pretty(women$weight, 3))
+wfact
+
+#通过labels参数来指定因子水平
+wfact <- cut(women$weight, 3, labels = c("low","medium","high"))
+table(wfact)
+
+#基于分位数产生因子水平，可以用quantile()函数作为breaks参数
+wfact <- cut(women$weight, quantile(women$weight,(0:4)/4))
+table(wfact)
+```
+
+###5.5 Factors Based on Dates and Times
+
+```{r}
+everyday <- seq(as.Date("2013-12-23"),as.Date("2014-12-22"),by = "day")
+cmonth <- format(everyday, "%b")
+table(cmonth)
+#unique()按照变量值出现的顺序提取所有不同的值，levels参数可以提供正确的顺序
+months <- factor(cmonth, levels = unique(cmonth), ordered = T)
+table(months)
+
+#breaks参数可设值为：day, week, month, year等
+wks <- cut(everyday, breaks = "week")
+length(levels(wks))
+#默认以周一为一周的第一天。若要设成周日，令参数start.on.Monday = F
+format(as.Date(levels(wks)[1:3]),"%A")
+
+ms <- cut(everyday, breaks = "month")
+table(ms)
+
+#breaks参数还可以指定多种单位
+#labels的length需要与breaks的length一致，否则会报错。在下面这个例子里，一共跨越了5个季度o(╯□╰)o
+qtrs <- cut(everyday, "3 months"); table(qtrs)
+qtrs <- cut(everyday, "3 months", labels = paste("Q",1:5,sep = ""))
+table(qtrs)
+```
+
+###5.6 Interactions
+
+```{r}
+#在第二章里学过一个函数，用于生成多个向量构成的组合
+eg <- expand.grid(V1 = factor(1:3),V2 = factor(1:2));eg
+class(eg)
+class(eg[1,1])
+
+#这里要讲的是用interaction函数为多个因子水平创建交互组合，形成新的因子水平
+data(CO2)
+table(CO2$Plant)
+table(CO2$Type)
+newfact <- interaction(CO2$Plant, CO2$Type)
+nlevels(newfact)
+str(newfact)
+#若只需保留那些出现过的因子水平组合，则令drop参数为T
+newfact2 <- interaction(CO2$Plant, CO2$Type, drop = T)
+nlevels(newfact2)
+```
+

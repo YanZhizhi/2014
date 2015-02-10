@@ -7,6 +7,8 @@ output: html_document
 
 \  **Data Manipulation with R**
 
+#Dates
+
 - as.date()函数
 - chron包，处理日期和时间，不控制时区
 - POSIXct和POSIXlt可控制时间、日期和时区
